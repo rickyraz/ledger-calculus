@@ -2,5 +2,5 @@
  (name LedgerCalculus)
  (package ledger-calculus)
  (mode vo)
- (modules Syntax Sequent)
+ (modules Syntax Sequent Identity)
  (theories Stdlib))
