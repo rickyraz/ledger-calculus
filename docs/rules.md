@@ -1,45 +1,44 @@
-# Aturan inferensi
+# Inference rules
 
-File ini adalah sumber kebenaran untuk `theories/Sequent.v`. Setiap aturan di
-bawah punya tepat satu konstruktor dengan nama yang sama di `Sequent.v`, dan
-sebaliknya.
+This file is the source of truth for `theories/Sequent.v`. Each rule below has
+exactly one constructor with the same name in `Sequent.v`, and vice versa.
 
-## Formula
+## Formulas
 
 ```
 A, B ::= p | 1 | A ⊗ B | A ⊸ B | A ⊕ B | ◇ₖA        (p atom, k : nat)
 ```
 
-## Sequent
+## Sequents
 
 ```
 Δ ⊢ C
 ```
 
-`Δ` adalah konteks linear, ditulis sebagai list formula. Urutan di list tidak
-bermakna secara logis; exchange diberikan sebagai satu aturan eksplisit
-(`exchange`). Aturan kiri selalu bekerja pada formula di kepala list. Konteks
-yang dipecah ditulis `Δ₁, Δ₂` (konkatenasi list).
+`Δ` is the linear context, written as a list of formulas. The order in the list
+has no logical meaning; exchange is given as one explicit rule (`exchange`).
+Left rules always work on the formula at the head of the list. A context that
+is split is written `Δ₁, Δ₂` (list concatenation).
 
-Tidak ada weakening dan tidak ada contraction. Tidak ada aturan cut; cut
-adalah teorema (`cut_admissible` di `CutElim.v`).
+There is no weakening and no contraction. There is no cut rule; cut is a
+theorem (`cut_admissible` in `CutElim.v`).
 
-## Aturan
+## Rules
 
-### Identitas dan struktural
+### Identity and structural
 
 ```
   ─────────── id_atom
     p ⊢ p
 
 
-    Δ ⊢ C      Δ adalah permutasi dari Δ'
+    Δ ⊢ C      Δ is a permutation of Δ'
   ───────────────────────────────────────── exchange
     Δ' ⊢ C
 ```
 
-`id_atom` hanya untuk atom. `A ⊢ A` untuk formula sembarang adalah teorema
-(`identity` di `Identity.v`).
+`id_atom` is only for atoms. `A ⊢ A` for an arbitrary formula is a theorem
+(`identity` in `Identity.v`).
 
 ### Unit 1
 
@@ -66,7 +65,7 @@ adalah teorema (`cut_admissible` di `CutElim.v`).
    A ⊗ B, Δ ⊢ C
 ```
 
-### Implikasi linear ⊸
+### Linear implication ⊸
 
 ```
    A, Δ ⊢ B
@@ -101,12 +100,12 @@ adalah teorema (`cut_admissible` di `CutElim.v`).
 
 ```
     Δ ⊢ A
-  ────────── submit          (◇ₖ-kanan, untuk setiap k)
+  ────────── submit          (◇ₖ-right, for every k)
    Δ ⊢ ◇ₖA
 
 
       A, Δ ⊢ ◇ⱼC
-  ────────────────── await   (◇ₖ-kiri, lax bergraded)
+  ────────────────── await   (◇ₖ-left, graded lax)
    ◇ₖA, Δ ⊢ ◇₍ₖ₊ⱼ₎C
 
 
@@ -115,26 +114,25 @@ adalah teorema (`cut_admissible` di `CutElim.v`).
      ◇ₖ(R ⊗ X), Δ ⊢ C
 ```
 
-Catatan:
+Notes:
 
-- `submit` membaca `submit : A ⊸ ◇ₖA`. Grade k bebas dipilih.
-- `await` adalah aturan lax: isi future (A) hanya boleh dipakai bila goal juga
-  sebuah future. Grade-nya dijumlahkan: menunggu future bergrade k lalu
-  menjalankan sisa yang bergrade j memberi future bergrade k + j. Akibatnya
-  ◇ₖA tidak lagi setara dengan A.
-- `cancel` bekerja pada future yang membawa resource R dan hasil X. Setelah
-  cancel, hasilnya menjadi X ⊕ 1 (selesai, atau dibatalkan tanpa hasil),
-  sedangkan R tetap ada di dalam future: cancel tidak pernah mengembalikan R
-  atau X keluar dari ◇ₖ.
-- `free : A ⊸ 1` bukan aturan logika. Di `Examples.v` ia muncul sebagai
-  hipotesis `buf ⊸ 1` di konteks.
+- `submit` reads `submit : A ⊸ ◇ₖA`. The grade k is chosen freely.
+- `await` is a lax rule: the content of the future (A) may only be used if the
+  goal is also a future. Its grades are added: waiting for a future of grade k
+  and then running the remainder of grade j gives a future of grade k + j. As a
+  consequence, ◇ₖA is no longer equivalent to A.
+- `cancel` works on a future carrying resource R and result X. After cancel,
+  the result becomes X ⊕ 1 (finished, or cancelled without a result), while R
+  remains inside the future: cancel never returns R or X out of ◇ₖ.
+- `free : A ⊸ 1` is not a logical rule. In `Examples.v` it appears as the
+  hypothesis `buf ⊸ 1` in the context.
 
-## Teorema tentang aturan (bukan aturan)
+## Theorems about the rules (not rules)
 
-| Nama | Pernyataan | File |
-|------|------------|------|
-| `identity` | `A ⊢ A` untuk setiap A | `Identity.v` |
-| `dia_mono` | bila `Δ ⊢ ◇ⱼC` dan `j ≤ n`, maka `Δ ⊢ ◇ₙC` | `CutElim.v` |
-| `cut_admissible` | bila `Δ₁ ⊢ A`, `Γ ⊢ C`, Γ permutasi dari `A', Δ₂`, dan A' adalah A dengan sebagian subformula positif X diganti X ⊕ 1 (`ext A A'`), maka `Δ₁, Δ₂ ⊢ C` | `CutElim.v` |
-| `cut` | bila `Δ₁ ⊢ A` dan `A, Δ₂ ⊢ C`, maka `Δ₁, Δ₂ ⊢ C` | `CutElim.v` |
-| `cancel_admissible` | aturan `cancel` bisa diturunkan dari `submit`, `await`, dan `cut` | `Examples.v` |
+| Name | Statement | File |
+|------|-----------|------|
+| `identity` | `A ⊢ A` for every A | `Identity.v` |
+| `dia_mono` | if `Δ ⊢ ◇ⱼC` and `j ≤ n`, then `Δ ⊢ ◇ₙC` | `CutElim.v` |
+| `cut_admissible` | if `Δ₁ ⊢ A`, `Γ ⊢ C`, Γ is a permutation of `A', Δ₂`, and A' is A with some positive subformula X replaced by X ⊕ 1 (`ext A A'`), then `Δ₁, Δ₂ ⊢ C` | `CutElim.v` |
+| `cut` | if `Δ₁ ⊢ A` and `A, Δ₂ ⊢ C`, then `Δ₁, Δ₂ ⊢ C` | `CutElim.v` |
+| `cancel_admissible` | the `cancel` rule can be derived from `submit`, `await`, and `cut` | `Examples.v` |

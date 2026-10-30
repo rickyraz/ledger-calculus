@@ -5,9 +5,9 @@ synopsis: "Ledger Calculus: cancellable linear futures, formalized in Rocq"
 maintainer: "Ricky"
 authors: ["Ricky"]
 license: "BSD-3-Clause"
-# Versi persis dari mesin pengembangan (Rocq Platform 2026.07.0, Windows):
-# rocq --version = 9.1.0, dune --version = 3.21.0. rocq-stdlib mengikuti
-# package pick Rocq Platform 9.1~2026.01.
+# Exact versions from the development machine (Rocq Platform 2026.07.0, Windows):
+# rocq --version = 9.1.0, dune --version = 3.21.0. rocq-stdlib follows the
+# Rocq Platform 9.1~2026.01 package pick.
 depends: [
   "rocq-core" {= "9.1.0"}
   "rocq-stdlib" {= "9.0.0"}

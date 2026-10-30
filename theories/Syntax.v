@@ -1,4 +1,4 @@
-(** * Syntax: formula fragmen (1, ⊗, ⊸, ⊕, ◇ₖ) *)
+(** * Syntax: fragment formulas (1, ⊗, ⊸, ⊕, ◇ₖ) *)
 
 Inductive form : Type :=
 | Atom   : nat -> form
@@ -6,10 +6,10 @@ Inductive form : Type :=
 | Tensor : form -> form -> form
 | Lolli  : form -> form -> form
 | Plus   : form -> form -> form
-| Dia    : nat -> form -> form.   (** ◇ₖA; k adalah grade *)
+| Dia    : nat -> form -> form.   (** ◇ₖA; k is the grade *)
 
-(** Ukuran formula, dipakai sebagai ukuran induksi luar di cut admissibility.
-    Grade tidak dihitung. *)
+(** Formula size, used as the outer induction measure in cut admissibility.
+    Grades are not counted. *)
 Fixpoint size (A : form) : nat :=
   match A with
   | Atom _ => 1

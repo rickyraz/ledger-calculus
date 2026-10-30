@@ -1,10 +1,10 @@
-(** * Examples: korolari, contoh, dan sanity check *)
+(** * Examples: corollaries, examples, and sanity check *)
 
 From Stdlib Require Import List Permutation Arith.
 From LedgerCalculus Require Import Syntax Sequent Identity CutElim.
 Import ListNotations.
 
-(** ** Korolari: ◇ₖA ⊬ A untuk A tanpa ◇ *)
+(** ** Corollary: ◇ₖA ⊬ A for A without ◇ *)
 
 Fixpoint no_dia (A : form) : Prop :=
   match A with
@@ -16,7 +16,7 @@ Fixpoint no_dia (A : form) : Prop :=
   | Dia _ _ => False
   end.
 
-(** Formula yang boleh ada di konteks invariant: tanpa ◇, atau ◇ di puncak. *)
+(** Formulas allowed in the invariant context: without ◇, or ◇ at the head. *)
 Definition top_dia_or_free (A : form) : Prop :=
   no_dia A \/ exists k B, A = Dia k B.
 
@@ -27,11 +27,11 @@ Proof.
   apply H. exact (Permutation_in x (Permutation_sym Hp) Hx).
 Qed.
 
-(** Invariant inversi pada sistem cut-free: bila goal tanpa ◇ dan setiap
-    formula konteks tanpa ◇ atau ◇ di puncak, maka konteksnya sama sekali
-    tanpa ◇. Hanya [submit] dan [await] yang bisa menghasilkan goal ◇; dan
-    [cancel] mempertahankan ◇ di puncak, jadi hipotesis induksinya langsung
-    kontradiktif. *)
+(** Inversion invariant for the cut-free system: if the goal has no ◇ and
+    every context formula has no ◇ or is ◇ at the head, then the context has
+    no ◇ at all. Only [submit] and [await] can produce a ◇ goal; and [cancel]
+    preserves ◇ at the head, so the induction hypothesis is immediately
+    contradictory. *)
 Lemma dia_free_inv : forall G C, seq G C ->
   Forall top_dia_or_free G -> no_dia C -> Forall no_dia G.
 Proof.
@@ -103,7 +103,7 @@ Proof.
     destruct HC.
   - (* await: goal ◇ *)
     destruct HC.
-  - (* cancel: konteks premis masih memuat ◇ di puncak *)
+  - (* cancel: premise context still contains ◇ at the head *)
     apply Forall_cons_iff in HG as [_ HG].
     assert (Hd : top_dia_or_free (Dia k (Tensor Rr (Plus Xx One)))).
     { right. eauto. }
@@ -119,16 +119,16 @@ Proof.
   apply Forall_cons_iff in Hr as [Hr _]. destruct Hr.
 Qed.
 
-(** ** Kenapa batasan "tanpa ◇" perlu: ◇₀(◇ⱼB) ⊢ ◇ⱼB *)
+(** ** Why the "without ◇" restriction is necessary: ◇₀(◇ⱼB) ⊢ ◇ⱼB *)
 
 Example dia0_dia : forall j B, seq [Dia 0 (Dia j B)] (Dia j B).
 Proof. intros j B. exact (await 0 (identity (Dia j B))). Qed.
 
-(** ** cancel bisa diturunkan dari submit, await (k dan 0), dan cut
+(** ** cancel can be derived from submit, await (k and 0), and cut
 
-    ◇ₖ(R ⊗ X) ⊢ ◇ₖ(R ⊗ (X ⊕ 1)) diturunkan dengan [await k] di atas
-    [submit 0]; grade-nya k + 0 = k. Cut dengan premis [cancel] memberi
-    kesimpulannya. Bukti ini tidak memakai konstruktor [cancel]. *)
+    ◇ₖ(R ⊗ X) ⊢ ◇ₖ(R ⊗ (X ⊕ 1)) is derived with [await k] over
+    [submit 0]; the grade is k + 0 = k. Cutting with the premise [cancel]
+    gives the conclusion. This proof does not use the [cancel] constructor. *)
 
 Lemma cancel_admissible : forall k R X D C,
   seq (Dia k (Tensor R (Plus X One)) :: D) C ->
@@ -142,12 +142,12 @@ Proof.
   exact (cut [Dia k (Tensor R X)] D _ C h E).
 Qed.
 
-(** ** Sanity check (bukan hasil): submit → cancel → await → free
+(** ** Sanity check (not a result): submit → cancel → await → free
 
-    [buf] adalah atom, dan [free] adalah hipotesis [buf ⊸ 1] di konteks.
-    Future membawa resource [buf] dan hasil [1]. Setelah cancel, hasilnya
-    menjadi [1 ⊕ 1]. Karena await lax, [free] terjadi di dalam future, jadi
-    goal-nya ◇ₖ1. Langkah submit disambung ke sisanya dengan [cut]. *)
+    [buf] is an atom, and [free] is the hypothesis [buf ⊸ 1] in the context.
+    The future carries resource [buf] and result [1]. After cancel, the result
+    becomes [1 ⊕ 1]. Because await is lax, [free] happens inside the future, so
+    the goal is ◇ₖ1. The submit step is connected to the rest with [cut]. *)
 
 Definition buf : form := Atom 0.
 Definition free : form := Lolli buf One.
@@ -163,7 +163,7 @@ Proof.
   assert (s_free : seq [buf; free] One).
   { apply (exchange (D := [free; buf])); [apply perm_swap |].
     exact (lolli_L (D1 := [buf]) (D2 := []) (id_atom 0) (one_L one_R)). }
-  (* isi future setelah cancel: buf ⊗ (1 ⊕ 1), buf ⊸ 1 ⊢ 1 *)
+  (* future content after cancel: buf ⊗ (1 ⊕ 1), buf ⊸ 1 ⊢ 1 *)
   assert (s_body : seq [Tensor buf (Plus One One); free] One).
   { apply tensor_L.
     apply (exchange (D := [Plus One One; buf; free])); [apply perm_swap |].

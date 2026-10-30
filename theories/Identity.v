@@ -1,4 +1,4 @@
-(** * Identity expansion: A ⊢ A untuk setiap formula *)
+(** * Identity expansion: A ⊢ A for every formula *)
 
 From Stdlib Require Import List Permutation Arith.
 From LedgerCalculus Require Import Syntax Sequent.
@@ -17,7 +17,7 @@ Proof.
   - apply plus_L.
     + exact (plus_R1 B IHA).
     + exact (plus_R2 A IHB).
-  - (* await k 0 atas submit 0: ◇ₖA ⊢ ◇₍ₖ₊₀₎A *)
+  - (* await k 0 over submit 0: ◇ₖA ⊢ ◇₍ₖ₊₀₎A *)
     pose proof (await k (submit 0 IHA)) as H.
     rewrite Nat.add_0_r in H. exact H.
 Qed.

@@ -1,26 +1,26 @@
 (** * Cut admissibility
 
-    Strategi: induksi luar pada ukuran formula cut di sisi kiri ([size A]),
-    lalu induksi struktural pada derivasi kiri [Dd : Δ₁ ⊢ A]. Aturan kiri
-    (selain [await]), [cancel], dan [exchange] di [Dd] dikomutasikan langsung.
-    Bila [Dd] berakhir dengan aturan kanan, [id_atom], atau [await], premisnya
-    dicatat di [rinfo] dan dilakukan induksi struktural pada derivasi kanan
-    [E : Γ ⊢ C] di lemma [cut_E].
+    Strategy: outer induction on the size of the cut formula on the left
+    ([size A]), then structural induction on the left derivation
+    [Dd : Δ₁ ⊢ A]. Left rules (other than [await]), [cancel], and [exchange]
+    in [Dd] commute directly. If [Dd] ends with a right rule, [id_atom], or
+    [await], the premises are recorded in [rinfo] and structural induction is
+    performed on the right derivation [E : Γ ⊢ C] in lemma [cut_E].
 
-    Dua hal khusus untuk sistem lax:
-    - [await] di [Dd] tidak bisa dikomutasikan sebelum [E] juga berakhir di
-      future, jadi ia ditangani di dalam [cut_E], saat [E] principal pada
-      formula cut (kasus [await] terhadap [await]).
-    - [cancel] di [E] mengganti formula cut ◇ₖ(R ⊗ X) dengan ◇ₖ(R ⊗ (X ⊕ 1)),
-      yang lebih besar. Karena itu formula cut di sisi kanan boleh berupa
-      [A'] dengan [ext A A']: A' adalah A dengan sebagian subformula positif X
-      diganti X ⊕ 1. Ukuran induksi tetap ukuran A di sisi kiri. *)
+    Two special points for the lax system:
+    - [await] in [Dd] cannot commute before [E] also ends in a future, so it
+      is handled inside [cut_E], when [E] is principal on the cut formula (the
+      [await]-versus-[await] case).
+    - [cancel] in [E] replaces the cut formula ◇ₖ(R ⊗ X) with ◇ₖ(R ⊗ (X ⊕ 1)),
+      which is larger. Therefore the cut formula on the right may be [A'] with
+      [ext A A']: A' is A with some positive subformula X replaced by X ⊕ 1.
+      The induction measure remains the size of A on the left. *)
 
 From Stdlib Require Import List Permutation Lia Arith.
 From LedgerCalculus Require Import Syntax Sequent.
 Import ListNotations.
 
-(** ** Lemma permutasi *)
+(** ** Permutation lemmas *)
 
 Lemma perm_cons_split : forall (a b : form) l l',
   Permutation (b :: l) (a :: l') ->
@@ -75,7 +75,7 @@ Proof.
   intros P D1 L. apply Permutation_sym, perm_front. reflexivity.
 Qed.
 
-(** ** Relasi [ext]: penyisipan ⊕ 1 di posisi positif *)
+(** ** Relation [ext]: inserting ⊕ 1 at positive positions *)
 
 Inductive ext : form -> form -> Prop :=
 | ext_atom : forall n, ext (Atom n) (Atom n)
@@ -113,7 +113,7 @@ Lemma ext_dia_inv : forall A k Y, ext A (Dia k Y) ->
   exists Y0, A = Dia k Y0 /\ ext Y0 Y.
 Proof. intros A k Y H. inversion H; subst. eauto. Qed.
 
-(** Langkah [cancel] mempertahankan [ext]. *)
+(** The [cancel] step preserves [ext]. *)
 Lemma ext_cancel_step : forall A k R X,
   ext A (Dia k (Tensor R X)) -> ext A (Dia k (Tensor R (Plus X One))).
 Proof.
@@ -126,7 +126,7 @@ Qed.
 Lemma size_pos : forall A, 1 <= size A.
 Proof. destruct A; simpl; lia. Qed.
 
-(** ** Grade sebagai batas atas *)
+(** ** Grade as an upper bound *)
 
 Lemma dia_mono : forall D F, seq D F ->
   forall j C n, F = Dia j C -> j <= n -> seq D (Dia n C).
@@ -161,16 +161,16 @@ Proof.
   - exact (cancel (IHE j0 C1 n0 HF Hle)).
 Qed.
 
-(** ** Pernyataan cut *)
+(** ** Cut statement *)
 
 Definition cut_stmt (A : form) : Prop :=
   forall D1 G D2 C A',
     ext A A' -> seq D1 A -> seq G C -> Permutation G (A' :: D2) ->
     seq (D1 ++ D2) C.
 
-(** [rinfo A Δ₁] mencatat premis aturan terakhir dari [Δ₁ ⊢ A] bila aturan
-    itu aturan kanan, [id_atom], atau [await]. Untuk [await], yang dicatat
-    adalah hipotesis induksi pada premisnya. *)
+(** [rinfo A Δ₁] records the premise of the last rule in [Δ₁ ⊢ A] when that
+    rule is a right rule, [id_atom], or [await]. For [await], what is recorded
+    is the induction hypothesis on its premise. *)
 
 Definition rinfo (A : form) (D1 : list form) : Prop :=
   match A with
@@ -186,7 +186,7 @@ Definition rinfo (A : form) (D1 : list form) : Prop :=
            Permutation G (A' :: D2) -> seq ((X :: D) ++ D2) C)
   end.
 
-(** ** Induksi pada derivasi kanan *)
+(** ** Induction on the right derivation *)
 
 Lemma cut_E : forall A D1,
   (forall B, size B < size A -> cut_stmt B) ->
@@ -298,7 +298,7 @@ Proof.
         -- exact (exchange (Permutation_app_head _ Hp)
                     (IH Q0 ltac:(simpl; lia) D1 (Y :: G) G C0 Y HQ DQ E2
                         (Permutation_refl _))).
-      * (* A' = X ⊕ 1 lewat ext_inl: lanjut ke cabang kiri *)
+      * (* A' = X ⊕ 1 via ext_inl: continue to the left branch *)
         exact (IH1 X D2 HAX (perm_skip X Hp)).
     + specialize (IH1 A' (X :: l1 ++ l2) Hx
                       (Permutation_sym (Permutation_middle (X :: l1) _ _))).
@@ -314,13 +314,13 @@ Proof.
     destruct (perm_cons_split _ _ _ _ H) as [[Heq Hp] | (l1 & l2 & -> & Hp)].
     + subst A'. destruct (ext_dia_inv _ _ _ Hx) as (Y0 & -> & HY).
       simpl in R. destruct R as [DY | (k1 & j1 & X1 & Dl & Hk & -> & Hcut)].
-      * (* submit terhadap await *)
+      * (* submit versus await *)
         assert (s : seq (D1 ++ G) (Dia j C0)).
         { exact (IH Y0 ltac:(simpl; lia) D1 (X :: G) G (Dia j C0) X HY DY E'
                     (Permutation_refl _)). }
         apply (exchange (Permutation_app_head _ Hp)).
         exact (dia_mono _ _ s j C0 (k + j) eq_refl ltac:(lia)).
-      * (* await terhadap await: komutasi ke premis derivasi kiri *)
+      * (* await versus await: commute into the premise of the left derivation *)
         assert (s : seq ((X1 :: Dl) ++ G) (Dia (j1 + j) C0)).
         { exact (Hcut (Dia j1 X :: G) (Dia (j1 + j) C0) (Dia j1 X) G
                       (ext_dia _ _ _ HY) (await j1 E') (Permutation_refl _)). }
@@ -343,7 +343,7 @@ Proof.
       exact (exchange (perm_to_front [Dia k (Tensor Rr (Plus Xx One))] D1 _) IHE).
 Qed.
 
-(** ** Induksi pada derivasi kiri dan pada ukuran formula *)
+(** ** Induction on the left derivation and on formula size *)
 
 Lemma cut_aux : forall n A, size A <= n -> cut_stmt A.
 Proof.
@@ -412,7 +412,7 @@ Qed.
 Theorem cut_admissible : forall A, cut_stmt A.
 Proof. intro A. exact (cut_aux (size A) A (le_n _)). Qed.
 
-(** Bentuk biasa: formula cut di kepala konteks kanan. *)
+(** Normal form: cut formula at the head of the right context. *)
 Corollary cut : forall D1 D2 A C,
   seq D1 A -> seq (A :: D2) C -> seq (D1 ++ D2) C.
 Proof.

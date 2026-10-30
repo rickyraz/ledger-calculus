@@ -1,6 +1,6 @@
-(** * Sequent calculus cut-free
+(** * Cut-free sequent calculus
 
-    Satu konstruktor per aturan di [docs/rules.md], dengan nama yang sama. *)
+    One constructor per rule in [docs/rules.md], with the same name. *)
 
 From Stdlib Require Import List Permutation.
 From LedgerCalculus Require Import Syntax.

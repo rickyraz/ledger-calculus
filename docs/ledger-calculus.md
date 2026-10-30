@@ -1,121 +1,121 @@
-# Ledger Calculus — Program sebagai Buku Besar Resource
+# Ledger Calculus — Programs as a Resource Ledger
 
 Oct 30, 2026 · @Ricky Raihan Azhari
 
-## Ringkasan
+## Summary
 
-Ledger Calculus adalah program riset, bukan teori yang sudah mapan. Gagasannya: setiap program diperlakukan sebagai entri buku besar. Nilai, ownership, protocol, effect, dan biaya dicatat dalam satu derivasi, dan setiap komposisi harus "balance".
+Ledger Calculus is a research program, not an established theory. The idea: every program is treated as a ledger entry. Values, ownership, protocols, effects, and costs are recorded in a single derivation, and every composition must "balance".
 
-Nama ini merangkum aksioma moralnya: tidak ada resource tanpa asal, tidak ada effect tanpa catatan, tidak ada biaya di luar pembukuan. Core calculus-nya disebut λ-Ledger.
+The name summarizes its moral axiom: no resource without origin, no effect without a record, no cost outside the books. Its core calculus is called λ-Ledger.
 
-Kontribusi yang dituju bukan potongan teori baru. Potongannya sudah ada di ekosistem Iris dan resource analysis. Targetnya adalah menyatukan potongan itu ke satu judgment yang bisa di-infer untuk Zig, bahasa dengan alokasi dan I/O eksplisit. ZBeam berperan sebagai pengguna pertama dan bukti kelayakan.
+The intended contribution is not a new piece of theory. The pieces already exist in the Iris and resource-analysis ecosystems. The goal is to unite those pieces into a single judgment that can be inferred for Zig, a language with explicit allocation and I/O. ZBeam serves as the first user and feasibility proof.
 
 ## 1. Problem
 
-Saat ini setiap pertanyaan tentang program dijawab oleh tool yang berbeda, padahal jawabannya saling bergantung.
+Today every question about a program is answered by a different tool, even though the answers depend on each other.
 
-| Tool | Pertanyaan yang dijawab |
-|------|-------------------------|
-| Type checker | Apakah tipe benar? |
-| Effect system | Apakah program melakukan I/O, state, atau throw? |
-| Borrow checker | Siapa yang memiliki resource? |
-| Verifier | Apakah algoritmanya benar? |
-| Race detector / model checker | Apakah concurrency aman? |
-| Profiler | Berapa mahal eksekusinya? |
+| Tool | Question answered |
+|------|-------------------|
+| Type checker | Are the types correct? |
+| Effect system | Does the program perform I/O, state, or throw? |
+| Borrow checker | Who owns the resource? |
+| Verifier | Is the algorithm correct? |
+| Race detector / model checker | Is the concurrency safe? |
+| Profiler | How expensive is execution? |
 
-Contoh di mana semua lapisan bertabrakan:
+An example where all layers collide:
 
-1. Task memulai async read dan menyerahkan buffer.
-2. Task dibatalkan.
-3. Cleanup membebaskan buffer.
-4. Kernel masih menulis ke buffer itu, lalu completion datang terlambat.
+1. A task starts an async read and hands over a buffer.
+2. The task is cancelled.
+3. Cleanup frees the buffer.
+4. The kernel is still writing to that buffer, and then a late completion arrives.
 
-Ini sekaligus masalah correctness, ownership, concurrency, cancellation effect, temporal memory safety, dan biaya menahan resource. Tidak satu pun tool di tabel bisa menangkapnya sendirian. Ledger Calculus ingin memberi satu specification untuk seluruhnya.
+This is simultaneously a problem of correctness, ownership, concurrency, cancellation effects, temporal memory safety, and the cost of retaining resources. No single tool in the table can catch it alone. Ledger Calculus aims to give one specification for all of it.
 
-## 2. Posisi terhadap riset yang ada
+## 2. Position relative to existing research
 
-Sebagian besar komponen Ledger sudah diselesaikan secara terpisah, dan ekosistem Iris sudah menutup tiga dari lima. Celah yang tersisa sempit tetapi nyata.
+Most Ledger components have already been solved separately, and the Iris ecosystem already covers three of the five. The remaining gap is narrow but real.
 
-| Komponen | Karya yang ada | Sudah tercakup | Belum tercakup |
-|----------|----------------|----------------|----------------|
-| Concurrent state & ownership | Iris (Jung dkk., ESOP 2017; JFP 2018) | Separation logic higher-order, invariant, ghost state | Bukti manual interaktif di Rocq |
-| Biaya di separation logic | Time credits & time receipts in Iris (Mével, Jourdan, Pottier, ESOP 2019) | Upper bound waktu sebagai resource logis | Satu dimensi (waktu), tetap manual |
-| Effect handlers | Hazel (de Vilhena & Pottier, POPL 2021) | Reasoning handler di Iris | Hanya continuation one-shot, tanpa biaya |
-| Message-passing protocol | Actris (Hinrichsen, Bengtson, Krebbers, POPL 2020) | Dependent separation protocols + functional correctness | Tanpa biaya |
-| Batas resource otomatis | AARA / RaML (Hoffmann dkk.) | Inference bound polinomial lewat LP | Effects dan concurrent state terbatas |
-| Protocol + biaya | Resource-aware session types (Das, Hoffmann, Pfenning, LICS 2018); Nomos (CSF 2021) | Work dan span untuk proses message-passing | Tanpa shared memory dan handler |
-| Grade kuantitatif | QTT (Atkey, LICS 2018), Idris 2, Granule (ICFP 2019) | Usage dan grade di sistem tipe | Tanpa program logic untuk concurrency |
+| Component | Existing work | Already covered | Not yet covered |
+|-----------|---------------|-----------------|-----------------|
+| Concurrent state & ownership | Iris (Jung et al., ESOP 2017; JFP 2018) | Higher-order separation logic, invariants, ghost state | Interactive manual proofs in Rocq |
+| Costs in separation logic | Time credits & time receipts in Iris (Mével, Jourdan, Pottier, ESOP 2019) | Upper bound on time as a logical resource | One dimension (time), still manual |
+| Effect handlers | Hazel (de Vilhena & Pottier, POPL 2021) | Reasoning about handlers in Iris | One-shot continuations only, no costs |
+| Message-passing protocols | Actris (Hinrichsen, Bengtson, Krebbers, POPL 2020) | Dependent separation protocols + functional correctness | No costs |
+| Automatic resource bounds | AARA / RaML (Hoffmann et al.) | Polynomial bound inference via LP | Limited effects and concurrent state |
+| Protocols + costs | Resource-aware session types (Das, Hoffmann, Pfenning, LICS 2018); Nomos (CSF 2021) | Work and span for message-passing processes | No shared memory and handlers |
+| Quantitative grades | QTT (Atkey, LICS 2018), Idris 2, Granule (ICFP 2019) | Usage and grades in the type system | No program logic for concurrency |
 
-Celahnya ada tiga:
+The gap is threefold:
 
-1. Belum ada satu judgment yang memuat ownership, protocol, effect, correctness, dan biaya sekaligus.
-2. Biaya multi-dimensi di bawah concurrency (terutama peak memory) belum punya aturan komposisi yang sound dan scheduler-independent.
-3. Otomasi vs ekspresivitas: Iris ekspresif tetapi manual, sedangkan AARA otomatis tetapi sempit. Belum ada sistem bertingkat yang menghubungkan keduanya dalam satu model semantik.
+1. There is no single judgment that contains ownership, protocols, effects, correctness, and cost at once.
+2. Multi-dimensional costs under concurrency (especially peak memory) do not yet have sound, scheduler-independent composition rules.
+3. Automation vs expressiveness: Iris is expressive but manual, while AARA is automatic but narrow. There is no layered system connecting the two in a single semantic model.
 
-Konsekuensinya, strategi paling realistis adalah membangun di atas Iris (memakai time credits, Hazel, dan Actris sebagai fondasi), bukan membuat logic baru dari nol.
+Consequently, the most realistic strategy is to build on top of Iris (using time credits, Hazel, and Actris as foundations), rather than creating a new logic from scratch.
 
-## 3. Bentuk judgment
+## 3. Shape of the judgment
 
-Satu entri ledger mencatat apa yang masuk, apa yang keluar, dan berapa harganya:
+One ledger entry records what goes in, what comes out, and how much it costs:
 
 $$
 \Gamma;\ \Delta \vdash e : A \dashv \Delta' \quad \{P\} \rightsquigarrow \{Q\} \quad !\,\varepsilon \quad @\,\kappa
 $$
 
-- Γ: konteks biasa, boleh dipakai berulang.
-- Δ dan Δ': resource linear sebelum dan sesudah eksekusi.
-- A: tipe hasil.
-- P dan Q: precondition dan postcondition logis.
-- ε: effect yang mungkin terjadi, sebagai elemen effect quantale (urutan bermakna).
-- κ: vektor biaya upper bound.
+- Γ: ordinary context, may be used repeatedly.
+- Δ and Δ': linear resources before and after execution.
+- A: result type.
+- P and Q: logical precondition and postcondition.
+- ε: effects that may occur, as elements of an effect quantale (order matters).
+- κ: cost upper-bound vector.
 
-Contoh untuk async read berbasis completion queue:
+Example for a completion-queue-based async read:
 
 ```
 read(fd, buf, n) : Result(usize)
 
-Precondition:   fd terbuka; buf dimiliki task; len(buf) ≥ n
-Ownership:      buf → InFlight(token)          (bukan lagi milik task)
+Precondition:   fd is open; buf is owned by the task; len(buf) ≥ n
+Ownership:      buf → InFlight(token)          (no longer owned by the task)
 Effects:        KernelIO · MaySuspend · MayCancel
 Cost:           W ≤ a·n + b
                 SQE ≤ 1, CQE ≤ 2               (completion + cancel ack)
                 M_retained ≤ n + c
-Postcondition:  token diselesaikan → buf kembali ke task
+Postcondition:  token completed → buf returns to the task
 ```
 
-Biaya dihitung dalam satuan entri submission/completion queue, bukan jumlah syscall, karena submission bisa di-batch. Tipe `Result(usize)` saja tidak mengatakan siapa memiliki buffer, apakah operasi bisa dibatalkan, atau kapan buffer aman dibebaskan.
+Costs are counted in submission/completion queue entries, not in syscalls, because submissions can be batched. The type `Result(usize)` alone does not say who owns the buffer, whether the operation can be cancelled, or when the buffer is safe to free.
 
-## 4. Hipotesis sentral
+## 4. Central hypothesis
 
-> **Ledger Hypothesis.** Untuk subset bahasa sistem dengan effect eksplisit, structured concurrency, dan resource linear, ada satu model semantik tempat empat tingkat pengecekan sound sekaligus, dan spesifikasi komponen dapat dikomposisi tanpa membuka implementasinya.
+> **Ledger Hypothesis.** For a subset of systems languages with explicit effects, structured concurrency, and linear resources, there is one semantic model in which four levels of checking are sound at once, and component specifications can be composed without opening their implementations.
 
-Versi sebelumnya mengklaim seluruh sistem decidable. Itu tidak mungkin bila functional correctness ikut diperiksa (Rice, 1953). Maka decidability dibagi per tingkat:
+A previous version claimed the whole system was decidable. That is impossible if functional correctness is also checked (Rice, 1953). So decidability is split by level:
 
-| Tingkat | Yang diperiksa | Status | Beban programmer |
-|---------|----------------|--------|------------------|
-| 0 | Tipe, ownership linear, protocol state, effect row | Decidable, otomatis | Tidak ada |
-| 1 | Batas biaya κ | Sound, tidak lengkap; inference via LP ala AARA | Anotasi untuk rekursi non-struktural |
-| 2 | Functional correctness P ⇒ Q | Verification condition ke SMT; semi-decidable | Loop invariant, lemma |
-| 3 | Properti di luar jangkauan otomasi | Bukti interaktif di Rocq di atas model Iris | Bukti manual |
+| Level | What is checked | Status | Programmer burden |
+|-------|-----------------|--------|-------------------|
+| 0 | Types, linear ownership, protocol state, effect rows | Decidable, automatic | None |
+| 1 | Cost bounds κ | Sound, incomplete; inference via LP à la AARA | Annotations for non-structural recursion |
+| 2 | Functional correctness P ⇒ Q | Verification conditions to SMT; semi-decidable | Loop invariants, lemmas |
+| 3 | Properties beyond automation | Interactive proofs in Rocq over the Iris model | Manual proofs |
 
-Yang dijanjikan bukan "sistem selalu bisa membuktikan semuanya". Yang dijanjikan: apa pun yang lolos di tingkat mana pun benar-benar valid terhadap model yang sama, dan tingkat yang lebih tinggi bisa dipakai hanya untuk bagian kode yang membutuhkannya.
+What is promised is not "the system can always prove everything". What is promised: anything that passes at any level is genuinely valid against the same model, and higher levels can be used only for the parts of the code that need them.
 
-## 5. Struktur aljabar
+## 5. Algebraic structure
 
-Ledger memakai empat struktur. Masing-masing sudah punya teori matang, dan yang baru hanyalah cara keempatnya disatukan.
+Ledger uses four structures. Each already has mature theory, and what is new is only how the four are unified.
 
-| Struktur | Mencatat | Bentuk | Fondasi |
-|----------|----------|--------|---------|
-| Refinement / dependent types | Correctness nilai | sort(xs) : { ys \| sorted(ys) ∧ perm(xs, ys) } | Liquid types, Iris |
-| Separation algebra | Ownership | R ∗ S; tidak ada R ⊢ R ∗ R | Iris, QTT |
-| Effect quantale | Effect berurutan | Read(fd) · Write(log) · MayCancel | Gordon (ECOOP 2017), algebraic effects |
-| Cost vector | Biaya | κ = (W, S, M, A, N) | AARA, time credits |
+| Structure | Records | Form | Foundation |
+|-----------|---------|------|------------|
+| Refinement / dependent types | Value correctness | sort(xs) : { ys \| sorted(ys) ∧ perm(xs, ys) } | Liquid types, Iris |
+| Separation algebra | Ownership | R ∗ S; no R ⊢ R ∗ R | Iris, QTT |
+| Effect quantale | Sequential effects | Read(fd) · Write(log) · MayCancel | Gordon (ECOOP 2017), algebraic effects |
+| Cost vector | Cost | κ = (W, S, M, A, N) | AARA, time credits |
 
-Komponen biaya: W total work, S span (critical path), M peak memory, A jumlah alokasi, N jumlah pesan atau entri queue.
+Cost components: W total work, S span (critical path), M peak memory, A number of allocations, N number of messages or queue entries.
 
-### Aturan komposisi biaya
+### Cost composition rules
 
-W dan S mengikuti aturan standar:
+W and S follow the standard rules:
 
 $$
 W(P;Q) = W(P) + W(Q) \qquad S(P;Q) = S(P) + S(Q)
@@ -125,107 +125,107 @@ $$
 W(P \parallel Q) = W(P) + W(Q) \qquad S(P \parallel Q) \le \max(S(P), S(Q)) + c_{\text{sync}}
 $$
 
-Peak memory dulu dibiarkan terbuka. Perbaikannya: catat juga R, memori yang masih ditahan setelah program selesai. Dengan itu ada aturan yang sound untuk scheduler mana pun:
+Peak memory was initially left open. The fix: also record R, the memory still retained after the program finishes. With that there is a rule sound for any scheduler:
 
 $$
 M(P;Q) \le \max\bigl(M(P),\ R(P) + M(Q)\bigr) \qquad M(P \parallel Q) \le M(P) + M(Q)
 $$
 
-Aturan parallel itu pesimis, tetapi tidak bergantung pada scheduler. Bound yang lebih ketat hanya diizinkan bila jadwalnya dibatasi, misalnya κ(e, σ) untuk kelas scheduler σ tertentu.
+That parallel rule is pessimistic, but it does not depend on the scheduler. Tighter bounds are allowed only when the schedule is restricted, for example κ(e, σ) for a particular scheduler class σ.
 
-## 6. Hukum dasar
+## 6. Basic laws
 
-Ini bukan "aksioma alam". Ini adalah hukum yang harus dipenuhi struktur aljabarnya, lalu dibuktikan sebagai metatheorem. Kolom terakhir mencatat bagian yang diperbaiki dari versi sebelumnya.
+These are not "axioms of nature". They are laws the algebraic structure must satisfy, then proved as metatheorems. The last column records the parts fixed from the previous version.
 
-| # | Hukum | Rumus | Catatan |
-|---|-------|-------|---------|
-| 1 | Identity | skip ; g = g ; skip = g | Biaya skip = 0 |
-| 2 | Associativity | (g₁ ; g₂) ; g₃ = g₁ ; (g₂ ; g₃) | Compiler bebas mengelompokkan |
-| 3 | Resource conservation | Δ = Δ₁ ⊎ Δ₂ untuk P ∥ Q | Resource dibagi, atau dibagikan lewat invariant yang dibuktikan |
-| 4 | Frame | {P} e {Q} ⟹ {P ∗ R} e {Q ∗ R} | Inti modularitas separation logic |
-| 5 | Effect ordering | Lock · Write ≠ Write · Lock | Commute hanya dengan bukti noninterference |
-| 6 | Choice bound | ε(if) = ε_b · (ε₁ ⊔ ε₂); κ(if) ≤ κ_b + max(κ₁, κ₂) | Diperbaiki: biaya dan effect evaluasi kondisi b ikut dihitung |
-| 7 | Parallel noninterference | res(P) ∩ res(Q) = ∅, atau akses bersama di bawah invariant | ∥ komutatif hanya sampai observational equivalence |
-| 8 | Handler homomorphism | H(e₁ ; e₂) = H(e₁) ; H(e₂); κ(H(e)) ≤ Φ_H(ε(e), κ(e)) | Diperbaiki: hanya untuk deep handler dengan continuation one-shot (linear) |
-| 9 | Monotonic refinement | P ⇒ P′, Q′ ⇒ Q, ε′ ⪯ ε, κ′ ⪯ κ | Implementasi boleh menjanjikan lebih kuat |
+| # | Law | Formula | Note |
+|---|-----|---------|------|
+| 1 | Identity | skip ; g = g ; skip = g | Cost of skip = 0 |
+| 2 | Associativity | (g₁ ; g₂) ; g₃ = g₁ ; (g₂ ; g₃) | Compiler may regroup freely |
+| 3 | Resource conservation | Δ = Δ₁ ⊎ Δ₂ for P ∥ Q | Resources are split, or shared through a proved invariant |
+| 4 | Frame | {P} e {Q} ⟹ {P ∗ R} e {Q ∗ R} | Core of separation-logic modularity |
+| 5 | Effect ordering | Lock · Write ≠ Write · Lock | Commute only with a proof of noninterference |
+| 6 | Choice bound | ε(if) = ε_b · (ε₁ ⊔ ε₂); κ(if) ≤ κ_b + max(κ₁, κ₂) | Fixed: the cost and effect of evaluating condition b are counted too |
+| 7 | Parallel noninterference | res(P) ∩ res(Q) = ∅, or shared access under an invariant | ∥ is commutative only up to observational equivalence |
+| 8 | Handler homomorphism | H(e₁ ; e₂) = H(e₁) ; H(e₂); κ(H(e)) ≤ Φ_H(ε(e), κ(e)) | Fixed: only for deep handlers with one-shot (linear) continuations |
+| 9 | Monotonic refinement | P ⇒ P′, Q′ ⇒ Q, ε′ ⪯ ε, κ′ ⪯ κ | An implementation may promise something stronger |
 
-Pembatasan di hukum 8 disengaja. Continuation multi-shot bisa menggandakan resource linear dan melipatgandakan biaya. Mengikuti Hazel, λ-Ledger memperlakukan continuation sebagai resource linear. Multi-shot hanya boleh bila continuation tidak menangkap resource linear apa pun.
+The restriction in law 8 is deliberate. Multi-shot continuations can duplicate linear resources and multiply costs. Following Hazel, λ-Ledger treats continuations as linear resources. Multi-shot is allowed only if the continuation captures no linear resource.
 
-## 7. Metatheorem
+## 7. Metatheorems
 
-Syntax dan typing rules belum cukup. Kalkulus ini baru bernilai bila hasil berikut terbukti dan dimekanisasi.
+Syntax and typing rules are not enough. This calculus is only worthwhile if the following results are proved and mechanized.
 
-1. **Adequacy.** Derivasi di logic menjamin perilaku di operational semantics. Ini teorema induk, dan yang lain diturunkan darinya, seperti di Iris.
-2. **Preservation.** Jika e → e′, maka Spec(e′) ⪯ Spec(e).
-3. **Progress.** Program tidak stuck, kecuali pada blocking atau suspension yang dinyatakan di ε.
-4. **Ownership safety.** Resource linear tidak dipakai setelah dipindahkan atau dibebaskan.
-5. **Protocol fidelity.** Pesan dan operasi mengikuti state protocol.
-6. **Race freedom.** Tidak ada akses concurrent ilegal ke resource yang sama.
-7. **Cost soundness.** Jika diturunkan κ(e) ≤ f(n), maka setiap eksekusi dalam model memenuhi batas itu.
-8. **Contextual refinement.** Tidak ada konteks valid yang bisa mengamati pelanggaran spesifikasi.
-9. **Compiler preservation.** Kompilasi mempertahankan safety, effect yang observable, protocol, dan relasi biaya cost_machine ≤ a · cost_source + b.
+1. **Adequacy.** A derivation in the logic guarantees behavior in the operational semantics. This is the master theorem, and the others are derived from it, as in Iris.
+2. **Preservation.** If e → e′, then Spec(e′) ⪯ Spec(e).
+3. **Progress.** Programs do not get stuck, except on blocking or suspension declared in ε.
+4. **Ownership safety.** Linear resources are not used after being moved or freed.
+5. **Protocol fidelity.** Messages and operations follow the protocol state.
+6. **Race freedom.** No illegal concurrent access to the same resource.
+7. **Cost soundness.** If κ(e) ≤ f(n) is derived, then every execution in the model satisfies that bound.
+8. **Contextual refinement.** No valid context can observe a specification violation.
+9. **Compiler preservation.** Compilation preserves safety, observable effects, protocols, and the cost relation cost_machine ≤ a · cost_source + b.
 
-## 8. Target: Zig, dengan ZBeam sebagai bukti kelayakan
+## 8. Target: Zig, with ZBeam as feasibility proof
 
-Ledger paling berdampak bila dipasang di level bahasa, bukan di satu program. Targetnya Zig: satu kontrak di `Allocator` dan `std.Io` berlaku untuk setiap program yang memakainya.
+Ledger has the most impact when installed at the language level, not in a single program. The target is Zig: one contract in `Allocator` and `std.Io` applies to every program that uses it.
 
-### Kenapa Zig
+### Why Zig
 
-Zig tidak punya control flow atau alokasi tersembunyi. Karena itu, sebagian besar entri ledger sudah terlihat langsung di kode.
+Zig has no hidden control flow or allocation. As a result, most ledger entries are already visible directly in the code.
 
-| Fitur Zig | Komponen ledger | Artinya |
-|-----------|-----------------|---------|
-| `Allocator` sebagai parameter eksplisit | Biaya A, M + ownership | Setiap alokasi punya asal yang jelas |
-| `std.Io` sebagai parameter eksplisit | Effect handler | Backend threaded dan evented adalah handler; hukum 8 berlaku: perilaku sama, biaya beda |
-| Error union + `try` | Effect exception | Jalur error terlihat di tipe |
-| `defer` / `errdefer` | Urutan effect dan cleanup | Bisa dibuktikan setiap alokasi dibebaskan di semua jalur error |
-| `comptime` | Spesifikasi sebagai tipe | Wrapper seperti `Owned(T)` dan `InFlight(T)` bisa dideklarasikan tanpa mengubah bahasa |
+| Zig feature | Ledger component | Meaning |
+|-------------|------------------|---------|
+| `Allocator` as explicit parameter | Cost A, M + ownership | Every allocation has a clear origin |
+| `std.Io` as explicit parameter | Effect handler | Threaded and evented backends are handlers; law 8 applies: same behavior, different cost |
+| Error union + `try` | Exception effect | Error paths are visible in the type |
+| `defer` / `errdefer` | Effect ordering and cleanup | Can prove every allocation is freed on all error paths |
+| `comptime` | Specification as a type | Wrappers such as `Owned(T)` and `InFlight(T)` can be declared without changing the language |
 
-### Celah: ownership tidak ada di sistem tipe
+### Gap: ownership is not in the type system
 
-Zig tidak punya ownership maupun linearitas. Pointer bebas di-alias, nilai bisa disalin, dan safety check hanya berjalan saat runtime di Debug/ReleaseSafe. `comptime` juga tidak bisa membaca isi body fungsi, jadi checker tidak bisa dibuat sebagai library biasa.
+Zig has neither ownership nor linearity. Pointers are freely aliased, values can be copied, and safety checks run only at runtime in Debug/ReleaseSafe. `comptime` also cannot read the body of a function, so the checker cannot be an ordinary library.
 
-Solusinya adalah checker eksternal yang membaca ZIR/AIR, dengan anotasi berupa wrapper type `comptime`. Checker hanya berlaku untuk subset Zig: tanpa `@ptrCast` bebas, tanpa inline asm, dan tanpa `@intToPtr` di kode yang diverifikasi. Binary tetap dikompilasi oleh compiler Zig biasa.
+The solution is an external checker that reads ZIR/AIR, with annotations as `comptime` wrapper types. The checker applies only to a subset of Zig: no unrestricted `@ptrCast`, no inline asm, and no `@intToPtr` in verified code. The binary is still compiled by the ordinary Zig compiler.
 
-### Kontrak inti
+### Core contracts
 
-1. **Allocator.** Memori hanya boleh dibebaskan oleh allocator yang mengalokasikannya. `arena.reset()` membatalkan semua pointer turunannya.
-2. **Future dari `std.Io`.** Setiap future harus di-await atau di-cancel tepat satu kali (resource linear). Buffer yang diserahkan baru kembali setelah future selesai.
-3. **Leak di jalur error.** `errdefer` ditambah aturan ownership membuktikan tidak ada kebocoran walaupun error muncul di tengah fungsi. Sekarang hal ini hanya dideteksi saat runtime oleh `std.testing.allocator`.
-4. **Kontrak biaya std.** Contohnya `ArrayList.append`: work amortized O(1), alokasi ≤ 1. Bound program pengguna disusun dari kontrak ini.
+1. **Allocator.** Memory may only be freed by the allocator that allocated it. `arena.reset()` invalidates all its descendant pointers.
+2. **Futures from `std.Io`.** Every future must be awaited or cancelled exactly once (linear resource). A handed-over buffer only returns after the future completes.
+3. **Leaks on error paths.** `errdefer` plus ownership rules prove that there are no leaks even when an error appears in the middle of a function. Today this is detected only at runtime by `std.testing.allocator`.
+4. **Std cost contracts.** For example `ArrayList.append`: amortized O(1) work, allocations ≤ 1. User program bounds are assembled from these contracts.
 
-### Posisi
+### Position
 
-Rust sudah punya fondasi formal (RustBelt, di atas Iris) dan beberapa verifier yang matang (Verus, Prusti, Creusot). Zig belum punya padanan RustBelt, tetapi bukan berarti kosong:
+Rust already has a formal foundation (RustBelt, on top of Iris) and several mature verifiers (Verus, Prusti, Creusot). Zig does not yet have a RustBelt counterpart, but that does not mean the space is empty:
 
-- CLR (Checker for Lifetimes and other Refinement types) menganalisis AIR untuk membawa jaminan memory safety setara Rust ke Zig. Ia memakai fork compiler Zig yang meneruskan AIR ke plugin eksternal.
-- Zirakzigil menambahkan contracts, refinement types, ownership backstop, dan SMT verifier di atas compiler Zig standar, tanpa syntax baru.
-- zig-spec adalah upaya resmi untuk spesifikasi Zig yang dimekanisasi, tetapi baru dimulai.
+- CLR (Checker for Lifetimes and other Refinement types) analyzes AIR to bring Rust-equivalent memory-safety guarantees to Zig. It uses a Zig compiler fork that forwards AIR to an external plugin.
+- Zirakzigil adds contracts, refinement types, an ownership backstop, and an SMT verifier on top of the standard Zig compiler, without new syntax.
+- zig-spec is the official effort for mechanized Zig specifications, but it has only just begun.
 
-Artinya, pendekatan "checker eksternal di atas AIR" sudah punya prior art. Kontribusi Ledger yang tersisa ada tiga: (1) biaya, effect, dan protocol, bukan hanya lifetime; (2) kontrak `std.Io` dan future-nya; (3) soundness yang dibuktikan secara foundational di Iris. CLR adalah kandidat basis untuk fase 4, bukan pesaing.
+So the "external checker over AIR" approach already has prior art. Ledger's remaining contribution is threefold: (1) costs, effects, and protocols, not just lifetimes; (2) the `std.Io` contract and its futures; (3) soundness proved foundationally in Iris. CLR is a candidate basis for phase 4, not a competitor.
 
-### Bukti kelayakan: ZBeam
+### Feasibility proof: ZBeam
 
-ZBeam dipakai sebagai pengguna pertama dan bukti kelayakan karena invariant-nya sudah eksplisit di desain, meskipun belum formal. ZBeam adalah Erlang Distribution peer native di Zig 0.17, tanpa tracing GC, dengan ownership eksplisit. Statusnya MVP: implementasi I/O masih blocking TCP framing, dan io_uring beserta arena ownership masih ditandai "research only".
+ZBeam is used as the first user and feasibility proof because its invariants are already explicit in the design, though not yet formal. ZBeam is a native Erlang Distribution peer in Zig 0.17, without tracing GC, with explicit ownership. Its status is MVP: the I/O implementation is still blocking TCP framing, and io_uring plus arena ownership are still marked "research only".
 
-README ZBeam juga mencatat bahwa batas proses OS tidak mengisolasi actor satu sama lain di dalam ZBeam. Artinya, disiplin ownership adalah satu-satunya isolasi. Karena itu Ledger relevan di sini.
+The ZBeam README also notes that OS process boundaries do not isolate actors from each other inside ZBeam. That means ownership discipline is the only isolation. That is why Ledger is relevant here.
 
-#### Invariant yang sudah ada dan bentuk ledger-nya
+#### Existing invariants and their ledger form
 
-| Invariant ZBeam (sekarang) | Komponen ledger | Bentuk spesifikasi |
-|----------------------------|-----------------|--------------------|
-| Mailbox bounded | Biaya M, A | M_mailbox ≤ k · frame_max untuk kapasitas k |
-| Demand-gated read: demand dipesan sebelum read, tanpa prefetch frame | Protocol + ownership | read : Demand ⊸ Frame; satu token demand untuk satu frame |
-| Decode ETF menghasilkan owned copy, dengan batas alokasi agregat | Ownership + biaya A | Term hasil decode tidak meminjam input buffer; A ≤ limit |
-| Owner M2c: satu call per worker, uncertain work tidak pernah di-replay | Protocol at-most-once | Admitted → Sent → (Replied \| Uncertain); Uncertain terminal, tanpa transisi Retry |
-| Tabel koneksi tetap 64 slot | Resource conservation | 64 token slot di Δ; tidak ada slot tanpa asal |
-| Stop/join kooperatif; handler CPU-bound tidak di-preempt | Effect + biaya W | Lihat di bawah |
+| ZBeam invariant (now) | Ledger component | Specification form |
+|-----------------------|------------------|--------------------|
+| Mailbox bounded | Cost M, A | M_mailbox ≤ k · frame_max for capacity k |
+| Demand-gated read: demand is reserved before read, without frame prefetch | Protocol + ownership | read : Demand ⊸ Frame; one demand token per frame |
+| ETF decode produces an owned copy, with an aggregate allocation bound | Ownership + cost A | The decoded result term does not borrow the input buffer; A ≤ limit |
+| M2c owner: one call per worker, uncertain work is never replayed | At-most-once protocol | Admitted → Sent → (Replied \| Uncertain); Uncertain is terminal, with no Retry transition |
+| Connection table fixed at 64 slots | Resource conservation | 64 slot tokens in Δ; no slot without origin |
+| Cooperative stop/join; CPU-bound handlers are not preempted | Effect + cost W | See below |
 
-Baris terakhir memberi wawasan konkret. Karena cancellation bersifat kooperatif, bound W pada handler sekaligus menjadi bound latency stop. Tanpa κ, spesifikasi hanya bisa bilang "stop akan terjadi pada titik yield berikutnya". Dengan κ, ia bisa bilang "stop terjadi dalam ≤ W_handler langkah".
+The last row gives a concrete insight. Because cancellation is cooperative, the W bound on a handler is also a stop-latency bound. Without κ, the specification can only say "stop will happen at the next yield point". With κ, it can say "stop happens within ≤ W_handler steps".
 
-#### Protocol io_uring + arena ownership
+#### io_uring protocol + arena ownership
 
-Di bagian inilah Ledger paling berguna, karena bug cancellation di io_uring tidak tertangkap tipe biasa. Protocol buffer per operasi:
+This is where Ledger is most useful, because io_uring cancellation bugs are not caught by ordinary types. Per-operation buffer protocol:
 
 ```
 Owned ──submit──▶ InFlight ──CQE(result)──▶ Completed
@@ -234,55 +234,55 @@ Owned ──submit──▶ InFlight ──CQE(result)──▶ Completed
                      ▼
               CancelRequested ──CQE(-ECANCELED)──▶ Cancelled
                      │
-                     └──CQE(result) datang duluan──▶ Completed
+                     └──CQE(result) arrives first──▶ Completed
 ```
 
-Aturan yang harus dibuktikan:
+Rules that must be proved:
 
-1. `free(buf)` hanya legal di `Completed` atau `Cancelled`, bukan saat `cancel()` dipanggil.
-2. Dari `CancelRequested`, operasi masih bisa selesai sukses. Kedua cabang harus ditangani.
-3. Reset arena hanya legal bila tidak ada token `InFlight` yang berasal dari arena itu. Ini aturan baru yang muncul karena ZBeam berencana memakai arena: satu `reset()` bisa membebaskan banyak buffer sekaligus.
-4. Biaya per operasi: SQE ≤ 1, CQE ≤ 2, M_retained ≤ n + c sampai token diselesaikan.
+1. `free(buf)` is legal only in `Completed` or `Cancelled`, not when `cancel()` is called.
+2. From `CancelRequested`, the operation can still complete successfully. Both branches must be handled.
+3. Resetting an arena is legal only if there is no `InFlight` token originating from that arena. This is a new rule that appears because ZBeam plans to use arenas: one `reset()` can free many buffers at once.
+4. Per-operation costs: SQE ≤ 1, CQE ≤ 2, M_retained ≤ n + c until the token completes.
 
-Dari satu derivasi, ZBeam mendapat jaminan tidak ada use-after-free, cancellation tidak membocorkan ownership, completion yang terlambat tetap aman, dan memori yang ditahan punya batas.
+From one derivation, ZBeam gets a guarantee of no use-after-free, cancellation that does not leak ownership, late completions that remain safe, and retained memory with a bound.
 
-Protocol buffer ini bukan khusus ZBeam. Ia adalah instans kontrak 2 (future `std.Io`) untuk backend `io_uring`, jadi bukti yang sama bisa dipakai ulang oleh program Zig lain.
+This buffer protocol is not specific to ZBeam. It is an instance of contract 2 (the `std.Io` future) for the `io_uring` backend, so the same proof can be reused by other Zig programs.
 
-## 9. Hambatan tersulit
+## 9. Hardest obstacles
 
-Enam hambatan ini menentukan apakah Ledger bisa dipakai, bukan hanya dibuktikan.
+These six obstacles determine whether Ledger can be used, not merely proved.
 
-| Hambatan | Mengapa sulit | Arah solusi |
-|----------|---------------|-------------|
-| Interaksi effect | state + exception ≠ exception + state; maknanya bergantung pada urutan handler | Effect quantale nonkomutatif; urutan handler masuk ke ε |
-| Continuation multi-shot | Menggandakan resource linear dan biaya | Continuation linear secara default (hukum 8) |
-| Biaya bergantung scheduler | Peak memory, latency, dan contention berubah per jadwal | Bound pesimis yang scheduler-independent; κ(e, σ) bila jadwal dibatasi |
-| Correctness vs performance | Lock dan copy menambah safety sekaligus biaya | κ membuat harga keamanan terlihat, bukan disembunyikan |
-| Abstraksi menyembunyikan biaya | Interface modular menutupi implementasi | Cost contract: interface membuka fungsi biaya simbolik, bukan kode |
-| Bahasa target tanpa anotasi | Zig tidak punya ownership atau linearitas di tipe, dan `comptime` tidak bisa membaca body fungsi | Checker eksternal di atas ZIR/AIR, anotasi sebagai wrapper type `comptime`, untuk subset tanpa `@ptrCast` bebas dan inline asm |
+| Obstacle | Why it is hard | Solution direction |
+|----------|----------------|--------------------|
+| Effect interaction | state + exception ≠ exception + state; meaning depends on handler order | Non-commutative effect quantale; handler order goes into ε |
+| Multi-shot continuations | Duplicate linear resources and costs | Linear continuations by default (law 8) |
+| Scheduler-dependent costs | Peak memory, latency, and contention change per schedule | Pessimistic scheduler-independent bounds; κ(e, σ) when the schedule is restricted |
+| Correctness vs performance | Locks and copies add both safety and cost | κ makes the price of safety visible, not hidden |
+| Abstraction hides cost | Modular interfaces hide implementations | Cost contract: the interface exposes a symbolic cost function, not code |
+| Target language without annotations | Zig has no ownership or linearity in types, and `comptime` cannot read function bodies | External checker over ZIR/AIR, annotations as `comptime` wrapper types, for the subset without unrestricted `@ptrCast` and inline asm |
 
-Ada satu risiko khusus target Zig: bahasanya belum 1.0, dan ZIR/AIR berubah tiap rilis. Checker harus dikunci ke satu versi Zig per rilis, dan kontrak `Allocator` / `std.Io` ditulis terhadap antarmukanya, bukan terhadap detail internalnya.
+There is one risk specific to the Zig target: the language is not yet 1.0, and ZIR/AIR change with every release. The checker must be pinned to one Zig version per release, and the `Allocator` / `std.Io` contracts must be written against their interfaces, not their internal details.
 
-## 10. Kriteria keberhasilan dan roadmap
+## 10. Success criteria and roadmap
 
-Ledger dianggap berhasil bila ada core calculus, semantics, soundness proof yang dimekanisasi, checker otomatis tingkat 0–1 untuk subset Zig, dan ZBeam lolos checker itu. Setiap fase punya gate yang terukur.
+Ledger is considered successful if there is a core calculus, semantics, a mechanized soundness proof, an automatic level 0–1 checker for a Zig subset, and ZBeam passes that checker. Each phase has a measurable gate.
 
-1. **Fase 1 — λ-Ledger sekuensial.** Ownership, effect, dan biaya (W, A) dimekanisasi di Rocq di atas Iris dan time credits.
-   Gate: teorema adequacy terbukti.
-2. **Fase 2 — protocol, concurrency, dan model ZBeam.** Ditambah protocol ala Actris dan biaya S, M, N.
-   Gate: model demand-gated mailbox dan protocol at-most-once M2c ZBeam terverifikasi.
-3. **Fase 3 — kontrak `Allocator` dan `std.Io`.** Kontrak ditulis dan dibuktikan untuk satu allocator (arena) dan dua backend Io.
-   Gate: kedua backend Io terbukti setara perilakunya dan hanya berbeda biaya.
-4. **Fase 4 — checker Zig di atas ZIR/AIR.** Inference tingkat 0–1 untuk subset Zig.
-   Gate: modul mailbox/dispatcher ZBeam lolos tanpa bukti manual, dan leak di jalur `errdefer` pada test suite buatan tertangkap semua.
-5. **Fase 5 — io_uring + arena di ZBeam.** Protocol buffer dan aturan reset arena diterapkan.
-   Gate: cancellation-safe read terbukti, dan test SIGKILL/nodedown ZBeam yang sudah ada tetap lolos.
+1. **Phase 1 — sequential λ-Ledger.** Ownership, effects, and costs (W, A) mechanized in Rocq on top of Iris and time credits.
+   Gate: adequacy theorem proved.
+2. **Phase 2 — protocols, concurrency, and the ZBeam model.** Add Actris-style protocols and S, M, N costs.
+   Gate: ZBeam's demand-gated mailbox model and at-most-once M2c protocol verified.
+3. **Phase 3 — `Allocator` and `std.Io` contracts.** Contracts written and proved for one allocator (arena) and two Io backends.
+   Gate: both Io backends proved behaviorally equivalent and differing only in cost.
+4. **Phase 4 — Zig checker over ZIR/AIR.** Level 0–1 inference for a Zig subset.
+   Gate: ZBeam mailbox/dispatcher modules pass without manual proofs, and leaks on `errdefer` paths in a synthetic test suite are all caught.
+5. **Phase 5 — io_uring + arenas in ZBeam.** Buffer protocol and arena reset rules applied.
+   Gate: cancellation-safe read proved, and existing ZBeam SIGKILL/nodedown tests still pass.
 
-Bentuk akhir yang dituju bagi programmer:
+The final shape targeted for programmers:
 
 ```zig
-// Sketsa API, belum ada. Spesifikasi menempel di samping fungsi;
-// signature dan body readFrame tidak berubah.
+// API sketch, not yet available. The specification is attached next to the
+// function; signature and body of readFrame are unchanged.
 pub const readFrame_spec = ledger.spec(readFrame, .{
     .ownership = .{ .buf = .moved_then_returned },
     .effects = .{ .kernel_io, .may_cancel },
@@ -292,114 +292,114 @@ pub const readFrame_spec = ledger.spec(readFrame, .{
 });
 ```
 
-Checker lalu menghasilkan proof certificate, effect manifest, dan resource bound. Binary tetap dibuat oleh compiler Zig biasa.
+The checker then produces a proof certificate, effect manifest, and resource bound. The binary is still produced by the ordinary Zig compiler.
 
-## 11. Arah fundamental: cancellable linear futures
+## 11. Fundamental direction: cancellable linear futures
 
-Agar setara Curry–Howard, Ledger harus dimulai dari logika, bukan dari sistem spesifikasi. Kandidat intinya adalah **cancellable linear futures**: future linear yang bisa di-cancel tanpa melepaskan resource-nya.
+To be on par with Curry–Howard, Ledger must start from logic, not from a specification system. The core candidate is **cancellable linear futures**: linear futures that can be cancelled without releasing their resources.
 
-### Syarat setara Curry–Howard
+### Curry–Howard requirements
 
-1. Logikanya berdiri sendiri: sequent calculus dengan aturan yang bisa dibenarkan tanpa menyebut program.
-2. Cut elimination sama dengan eksekusi.
-3. Properti penting (bebas deadlock, bebas use-after-free, batas resource) menjadi korolari cut elimination, bukan dibuktikan terpisah.
-4. Ada model kategorinya.
+1. The logic stands on its own: a sequent calculus with rules that can be justified without mentioning programs.
+2. Cut elimination equals execution.
+3. Important properties (deadlock freedom, use-after-free freedom, resource bounds) are corollaries of cut elimination, not proved separately.
+4. There is a categorical model.
 
-Bagian 3–10 belum memenuhi keempatnya. Bagian ini adalah jalur untuk mencapainya.
+Sections 3–10 do not yet satisfy all four. This section is the path to achieving them.
 
 ### Prior art
 
-| Gagasan | Karya | Status |
-|---------|-------|--------|
-| Linear futures dari Curry–Howard adjoint logic | Back to Futures (Pruiksma & Pfenning, JFP 2022) | Ada; A ⊸ ◇A pada dasarnya linear future |
-| ◇ sebagai "eventually" | Fair Reactive Programming (Cave dkk.); Lively RaTT (Bahr dkk., POPL 2021) | Ada, untuk nilai yang berubah terhadap waktu, bukan resource |
-| Resource safety + exception secara Curry–Howard | Curry-Howard for destructors (Congard, Munch-Maccagnoni, Douence, 2025) | Ada; borrowing disebut sebagai masalah terbuka |
-| Semantik borrowing | From Linearity to Borrowing (OOPSLA 2025) | Ada, untuk lifetime leksikal, tanpa pihak luar asinkron |
-| Future linear yang bisa di-cancel tanpa melepas resource | — | Tidak ditemukan |
+| Idea | Work | Status |
+|------|------|--------|
+| Linear futures from Curry–Howard adjoint logic | Back to Futures (Pruiksma & Pfenning, JFP 2022) | Exists; A ⊸ ◇A is essentially a linear future |
+| ◇ as "eventually" | Fair Reactive Programming (Cave et al.); Lively RaTT (Bahr et al., POPL 2021) | Exists, for values that change over time, not resources |
+| Resource safety + exceptions via Curry–Howard | Curry-Howard for destructors (Congard, Munch-Maccagnoni, Douence, 2025) | Exists; borrowing is mentioned as an open problem |
+| Borrowing semantics | From Linearity to Borrowing (OOPSLA 2025) | Exists, for lexical lifetimes, without asynchronous third parties |
+| Cancellable linear futures without releasing resources | — | Not found |
 
-Di praktik, masalahnya nyata dan belum diselesaikan di level logika. uringscope (2026) menyebut pengecekan kontrak buffer-ownership io_uring sebagai titik yang belum diisi. withoutboats menyimpulkan kernel harus memiliki buffer. rustfs-uring menegakkan aturan yang sama lewat tabel orphan dan acceptance test, bukan lewat logika.
+In practice, the problem is real and has not been solved at the logic level. uringscope (2026) names io_uring buffer-ownership contract checking as a gap that has not been filled. withoutboats concludes that the kernel must own the buffer. rustfs-uring enforces the same rules through an orphan table and acceptance tests, not through logic.
 
-### Bacaan logis
+### Logical reading
 
-| Aturan | Bacaan |
-|--------|--------|
-| submit : A ⊸ ◇ₖA | menyerahkan resource, menerima janji kembali dalam ≤ k langkah |
-| await : ◇ₖA ⊸ A | satu-satunya jalan mendapatkan resource lagi |
-| cancel : ◇ₖA ⊸ ◇ₖA | cancel adalah aksi protocol, bukan destruksi |
-| free : A ⊸ 1 | free hanya menerima A |
+| Rule | Reading |
+|------|---------|
+| submit : A ⊸ ◇ₖA | hand over a resource, receive a promise back in ≤ k steps |
+| await : ◇ₖA ⊸ A | the only way to get the resource back |
+| cancel : ◇ₖA ⊸ ◇ₖA | cancel is a protocol action, not a destruction |
+| free : A ⊸ 1 | free only accepts A |
 
-Logika ini tidak punya aturan ◇A ⊢ A selain lewat await. Akibatnya, use-after-free saat cancellation bukan bug yang ditangkap checker. Ia adalah bukti yang tidak bisa diturunkan.
+This logic has no rule ◇A ⊢ A other than through await. As a result, use-after-free on cancellation is not a bug the checker catches. It is a proof that cannot be derived.
 
-### Konjektur
+### Conjecture
 
-> Ada adjoint logic bergraded dengan modality pinjaman ◇ₖ dan aturan cancel di atas, sehingga (1) cut elimination berlaku dan berkorespondensi dengan eksekusi I/O asinkron, (2) panjang normalisasi dibatasi grade, dan (3) bebas deadlock, bebas use-after-free, serta batas memori yang ditahan adalah korolari cut elimination.
+> There is a graded adjoint logic with a loan modality ◇ₖ and a cancel rule on top of it, such that (1) cut elimination holds and corresponds to asynchronous I/O execution, (2) normalization length is bounded by the grade, and (3) deadlock freedom, use-after-free freedom, and a bound on retained memory are corollaries of cut elimination.
 
-### Basis dan langkah
+### Basis and steps
 
-Basisnya adjoint logic dari Pruiksma & Pfenning. Logika itu sudah punya Curry–Howard, concurrency, dan linear futures, dan grade biaya datang dari keluarga riset yang sama (Rast).
+The basis is the adjoint logic of Pruiksma & Pfenning. That logic already has Curry–Howard, concurrency, and linear futures, and cost grades come from the same research family (Rast).
 
-1. **Logika.** Tambahkan aturan cancel pada future linear dan buktikan cut elimination.
-2. **Grade.** Tambahkan ◇ₖ dengan biaya ala Rast, lalu buktikan batas panjang normalisasi.
-3. **Term assignment.** λ-Ledger diturunkan dari bukti, bukan dirancang terpisah.
-4. **Model kategori.** Cari struktur yang menginterpretasikan ◇ₖ dan cancel.
-5. **Turun ke praktik.** Kontrak `std.Io` (bagian 8) dan protocol buffer ZBeam menjadi instans term language, bukan aksioma.
+1. **Logic.** Add cancel rules to linear futures and prove cut elimination.
+2. **Grades.** Add ◇ₖ with Rast-style costs, then prove the normalization-length bound.
+3. **Term assignment.** λ-Ledger is derived from proofs, not designed separately.
+4. **Categorical model.** Find a structure that interprets ◇ₖ and cancel.
+5. **Down to practice.** The `std.Io` contracts (section 8) and the ZBeam buffer protocol become instances of the term language, not axioms.
 
-Kalau berhasil, hasilnya sekaligus menjawab sebagian masalah terbuka Congard dkk. untuk kasus borrowing asinkron.
+If successful, the result also answers part of the open problem of Congard et al. for the asynchronous borrowing case.
 
-### Risiko
+### Risks
 
-- Isi lengkap Back to Futures belum dibaca. Klaim bahwa paper itu tidak memodelkan cancellation masih dugaan.
-- Literatur cancellation di session types belum ditinjau ulang. Bisa jadi sebagian aturan cancel sudah ada di sana.
-- Ini riset logika murni. Cut elimination dengan aturan cancel bisa gagal berlaku, atau terlalu lemah untuk menangkap cancellation I/O nyata.
+- The full contents of Back to Futures have not been read. The claim that the paper does not model cancellation is still a conjecture.
+- The cancellation literature in session types has not been re-reviewed. Some cancel rules may already exist there.
+- This is pure logic research. Cut elimination with cancel rules may fail to hold, or may be too weak to capture real I/O cancellation.
 
-## 12. Peta posisi: Fil-C, Zig, dan ZBeam
+## 12. Position map: Fil-C, Zig, and ZBeam
 
-Ketiganya berada di sumbu yang berbeda. Fil-C mengamankan kode lewat runtime, Zig adalah tempat kontrak tinggal, dan ZBeam adalah instans pertama. Ledger menargetkan satu-satunya kuadran yang, dari pencarian sejauh ini, belum terisi: bukti statis untuk protocol dan biaya.
+The three sit on different axes. Fil-C secures code through the runtime, Zig is where contracts live, and ZBeam is the first instance. Ledger targets the only quadrant that, from the search so far, is still empty: static proofs for protocols and costs.
 
-*Gambar: peta posisi · cara menjamin × cakupan jaminan.* Sumbu horizontal adalah cara menjamin, sumbu vertikal adalah cakupan jaminan. Panah putus-putus menunjukkan perpindahan Zig dan ZBeam bila konjektur bagian 11 terbukti. Fil-C tetap di tempatnya dan menjadi batas kepercayaan untuk kode C.
+*Figure: position map · assurance method × assurance coverage.* The horizontal axis is the assurance method, the vertical axis is assurance coverage. Dashed arrows show the movement of Zig and ZBeam if the conjecture in section 11 is proved. Fil-C stays where it is and becomes the trust boundary for C code.
 
-### Apa yang terbukti, dan lewat apa
+### What is proved, and through what
 
-| | Jaminan sekarang | Bila konjektur terbukti | Dibuktikan lewat | Tetap tidak terbukti |
-|-|------------------|-------------------------|------------------|----------------------|
-| Fil-C | Memory safety penuh untuk C/C++ yang tidak dimodifikasi; bounds check, InvisiCaps, dan GC; pelanggaran menjadi panic; overhead sekitar 4x di kasus terburuk | Fil-C sendiri tidak dibuktikan Ledger. Kode C yang dikompilasi Fil-C menjadi komponen dengan kontrak memori yang dijamin runtime | Asumsi (aksioma) di batas FFI: kontrak memori dipercaya dari Fil-C, kontrak protocol di batas itu ditulis sebagai asumsi | Protocol dan biaya kode C; kebenaran runtime dan GC Fil-C |
-| Zig (bahasa) | Safety check runtime di Debug/ReleaseSafe; tidak ada ownership di tipe; leak dideteksi `std.testing.allocator` saat test | Kontrak `Allocator` dan `std.Io`: free hanya dari A; future di-await atau di-cancel tepat sekali; buffer kembali hanya lewat await; backend Io setara perilakunya; batas biaya | Kontrak diturunkan sebagai instans term language (bagian 11, langkah 5); kode pengguna diperiksa checker atas AIR (bagian 8, fase 4); soundness checker dari adequacy (bagian 7) | Kode di luar subset (`@ptrCast` bebas, inline asm); logika bisnis |
-| ZBeam | Invariant desain (mailbox bounded, demand-gated read, at-most-once M2c, tabel 64 slot) dijaga lewat kode dan test SIGKILL/nodedown; io_uring belum ada | Tidak ada prefetch frame; Uncertain terminal di M2c; tidak ada use-after-free saat cancel; reset arena hanya tanpa token InFlight; latency stop ≤ W handler | Protocol mailbox dan M2c diverifikasi sebagai model (fase 2); keamanan cancel adalah korolari cut elimination, karena ◇ₖA tidak bisa menjadi A tanpa await; batas stop dari grade biaya | Perilaku peer Erlang remote; keamanan cookie dan ketiadaan TLS (dicatat di README); handler CPU-bound tanpa bound W |
+| | Current guarantee | If the conjecture is proved | Proved through | Still unproved |
+|-|-------------------|-----------------------------|----------------|----------------|
+| Fil-C | Full memory safety for unmodified C/C++; bounds checks, InvisiCaps, and GC; violations become panics; roughly 4x overhead in the worst case | Fil-C itself is not proved by Ledger. C code compiled by Fil-C becomes a component with a runtime-guaranteed memory contract | Assumptions (axioms) at the FFI boundary: the memory contract is trusted from Fil-C, and protocol contracts at that boundary are written as assumptions | Protocols and costs of C code; correctness of the Fil-C runtime and GC |
+| Zig (language) | Runtime safety checks in Debug/ReleaseSafe; no ownership in types; leaks detected by `std.testing.allocator` during tests | `Allocator` and `std.Io` contracts: free only from A; futures awaited or cancelled exactly once; buffers return only through await; Io backends behaviorally equivalent; cost bounds | Contracts derived as instances of the term language (section 11, step 5); user code checked by the checker over AIR (section 8, phase 4); checker soundness from adequacy (section 7) | Code outside the subset (unrestricted `@ptrCast`, inline asm); business logic |
+| ZBeam | Design invariants (bounded mailbox, demand-gated read, at-most-once M2c, 64-slot table) maintained through code and SIGKILL/nodedown tests; io_uring not yet present | No frame prefetch; Uncertain terminal in M2c; no use-after-free on cancel; arena reset only without InFlight tokens; stop latency ≤ W handler | Mailbox and M2c protocols verified as models (phase 2); cancellation safety is a corollary of cut elimination, because ◇ₖA cannot become A without await; stop bound from cost grades | Remote Erlang peer behavior; cookie security and lack of TLS (noted in the README); CPU-bound handlers without a W bound |
 
-Fil-C dan Ledger tidak bersaing. Usulan Fil-C ABI di Zig membuka kemungkinan dua lapis: kode C yang di-link dijaga Fil-C saat runtime, sedangkan kode Zig yang dianotasi dibuktikan Ledger saat kompilasi.
+Fil-C and Ledger do not compete. The proposed Fil-C ABI in Zig opens the possibility of two layers: linked C code is kept safe by Fil-C at runtime, while annotated Zig code is proved by Ledger at compile time.
 
-## 13. Rumusan akhir
+## 13. Final formulation
 
-> Bisakah nilai, state, ownership, concurrency, effect, protocol, dan biaya sebuah program dicatat sebagai satu entri ledger yang komposisinya mengikuti hukum sederhana?
+> Can the values, state, ownership, concurrency, effects, protocols, and costs of a program be recorded as a single ledger entry whose composition follows simple laws?
 
-Hipotesisnya: bisa, untuk subset bahasa sistem yang terkontrol, jika correctness dipandang sebagai transisi state, ownership sebagai resource linear, effect sebagai grade, concurrency sebagai interaksi partial-order, dan biaya sebagai kuantitas dalam aljabar yang sama.
+The hypothesis: yes, for a controlled subset of systems languages, if correctness is viewed as state transition, ownership as linear resources, effects as grades, concurrency as partial-order interaction, and costs as quantities in the same algebra.
 
-Paradigmanya bergeser dari program sebagai fungsi ke program sebagai transformer resource yang terverifikasi. Korespondensi di bawah adalah analogi kerja, bukan teorema. Ia baru layak disebut "Curry–Howard" bila konjektur di bagian 11 terbukti.
+The paradigm shifts from programs as functions to programs as verified resource transformers. The correspondence below is a working analogy, not a theorem. It only deserves the name "Curry–Howard" if the conjecture in section 11 is proved.
 
-| Sisi program | Sisi logika |
-|--------------|-------------|
-| Program | Bukti |
-| Resource | Proposisi linear |
-| Protocol | Bukti concurrent |
-| Effect | Operasi aljabar |
-| Biaya | Grade kuantitatif |
-| Komposisi | Komposisi bukti |
+| Program side | Logic side |
+|--------------|------------|
+| Program | Proof |
+| Resource | Linear proposition |
+| Protocol | Concurrent proof |
+| Effect | Algebraic operation |
+| Cost | Quantitative grade |
+| Composition | Proof composition |
 
-## Referensi
+## References
 
-Setiap referensi menautkan ke PDF penulis, arXiv, atau DOI penerbit.
+Each reference links to the authors' PDF, arXiv, or the publisher's DOI.
 
-- [ZBeam — README, status MVP dan non-goals](https://github.com/rickyraz/zbeam)
-- Krebbers dkk. [The Essence of Higher-Order Concurrent Separation Logic](https://iris-project.org/pdfs/2017-esop-iris3-final.pdf), ESOP 2017
+- [ZBeam — README, MVP status and non-goals](https://github.com/rickyraz/zbeam)
+- Krebbers et al. [The Essence of Higher-Order Concurrent Separation Logic](https://iris-project.org/pdfs/2017-esop-iris3-final.pdf), ESOP 2017
 - [Lecture Notes on Iris](https://iris-project.org/tutorial-pdfs/iris-lecture-notes.pdf)
-- Jung dkk. [Iris from the Ground Up](https://cs.au.dk/~birke/papers/iris-journal.pdf), JFP 2018
+- Jung et al. [Iris from the Ground Up](https://cs.au.dk/~birke/papers/iris-journal.pdf), JFP 2018
 - Mével, Jourdan, Pottier. [Time Credits and Time Receipts in Iris](https://iris-project.org/pdfs/2019-esop-time.pdf), ESOP 2019
 - de Vilhena, Pottier. [A Separation Logic for Effect Handlers](https://doi.org/10.1145/3434314), POPL 2021
 - Hinrichsen, Bengtson, Krebbers. [Actris: Session-Type Based Reasoning in Separation Logic](https://doi.org/10.1145/3371074), POPL 2020
 - Hoffmann, Hofmann. [Amortized Resource Analysis with Polynomial Potential](https://www.cs.cmu.edu/~janh/assets/pdf/HoffmannH10.pdf), ESOP 2010
 - Hoffmann, Jost. [Two Decades of Automatic Amortized Resource Analysis](https://www.cs.cmu.edu/~janh/assets/pdf/HoffmannJ21.pdf), MSCS 2022
 - Das, Hoffmann, Pfenning. [Work Analysis with Resource-Aware Session Types](https://arxiv.org/abs/1712.08310), LICS 2018
-- Das dkk. [Resource-Aware Session Types for Digital Contracts (Nomos)](https://arxiv.org/abs/1902.06056), CSF 2021
+- Das et al. [Resource-Aware Session Types for Digital Contracts (Nomos)](https://arxiv.org/abs/1902.06056), CSF 2021
 - Wadler. [Propositions as Sessions](https://homepages.inf.ed.ac.uk/wadler/papers/propositions-as-sessions/propositions-as-sessions.pdf), ICFP 2012
 - Plotkin, Pretnar. [Handling Algebraic Effects](https://arxiv.org/abs/1312.1399), LMCS 2013
 - Gordon. [A Generic Approach to Flow-Sensitive Polymorphic Effects (effect quantales)](https://doi.org/10.4230/LIPIcs.ECOOP.2017.13), ECOOP 2017
@@ -409,17 +409,17 @@ Setiap referensi menautkan ke PDF penulis, arXiv, atau DOI penerbit.
 - Orchard, Liepelt, Eades. [Quantitative Program Reasoning with Graded Modal Types (Granule)](https://doi.org/10.1145/3341714), ICFP 2019
 - Rice. [Classes of Recursively Enumerable Sets and Their Decision Problems](https://doi.org/10.1090/S0002-9947-1953-0053041-6), Trans. AMS 1953
 
-Pembanding dan prior art (bagian 8):
+Comparisons and prior art (section 8):
 
-- Jung dkk. [RustBelt: Securing the Foundations of the Rust Programming Language](https://plv.mpi-sws.org/rustbelt/popl18/), POPL 2018
+- Jung et al. [RustBelt: Securing the Foundations of the Rust Programming Language](https://plv.mpi-sws.org/rustbelt/popl18/), POPL 2018
 - [Verus](https://github.com/verus-lang/verus)
 - [Prusti](https://github.com/viperproject/prusti-dev)
 - [Creusot](https://github.com/creusot-rs/creusot)
 - [CLR: Checker for Lifetimes and other Refinement types for Zig](https://github.com/ityonemo/clr)
 - [Zirakzigil](https://github.com/hotschmoe/zirakzigil)
-- [zig-spec — spesifikasi Zig (informal dan mechanized)](https://codeberg.org/ziglang/zig-spec)
+- [zig-spec — Zig specification (informal and mechanized)](https://codeberg.org/ziglang/zig-spec)
 
-Arah fundamental (bagian 11):
+Fundamental direction (section 11):
 
 - Pruiksma, Pfenning. [Back to Futures](https://arxiv.org/abs/2002.04607), JFP 2022
 - Cave, Ferreira, Panangaden, Pientka. [Fair Reactive Programming](https://www.cs.mcgill.ca/~acave1/papers/fair-reactive-long.pdf), POPL 2014
@@ -431,9 +431,9 @@ Arah fundamental (bagian 11):
 - withoutboats. [Notes on io-uring](https://without.boats/blog/io-uring/)
 - [rustfs-uring — cancel-safe io_uring read backend](https://docs.rs/rustfs-uring/)
 
-Peta posisi (bagian 12):
+Position map (section 12):
 
 - [Fil-C — memory-safe C/C++](https://fil-c.org/)
 - [InvisiCaps: The Fil-C Capability Model](https://fil-c.org/invisicaps)
-- LWN. [Fil-C: A memory-safe C implementation](https://lwn.net/Articles/1042938/), Oktober 2025
-- [Fil-C ABI proposal — issue tracker Zig](https://codeberg.org/ziglang/zig/issues/36237)
+- LWN. [Fil-C: A memory-safe C implementation](https://lwn.net/Articles/1042938/), October 2025
+- [Fil-C ABI proposal — Zig issue tracker](https://codeberg.org/ziglang/zig/issues/36237)
