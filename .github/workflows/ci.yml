@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Image resmi Rocq. Belum ada tag 9.1.0; dependensi di ledger-calculus.opam
+      # (rocq-core = 9.1.0, rocq-stdlib = 9.0.0) memaksa versi yang sama
+      # dengan mesin pengembangan.
+      - uses: coq-community/docker-coq-action@v1.5.2
+        with:
+          opam_file: 'ledger-calculus.opam'
+          custom_image: 'rocq/rocq-prover:9.1'
