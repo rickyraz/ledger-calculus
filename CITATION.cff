@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "If you use this artifact, please cite it as below."
+title: "Ledger Calculus: cancellable linear futures in Rocq"
+authors:
+  - name: "Ricky"
+date-released: 2026-10-30
+license: BSD-3-Clause

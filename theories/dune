@@ -1,0 +1,5 @@
+(rocq.theory
+ (name LedgerCalculus)
+ (package ledger-calculus)
+ (mode vo)
+ (theories Stdlib))
