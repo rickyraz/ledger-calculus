@@ -1,94 +1,179 @@
-(** * Examples: sanity check dan korolari *)
+(** * Examples: korolari, contoh, dan sanity check *)
 
-From Stdlib Require Import List Permutation.
+From Stdlib Require Import List Permutation Arith.
 From LedgerCalculus Require Import Syntax Sequent Identity CutElim.
 Import ListNotations.
 
-(** ** Sanity check (bukan hasil): submit → cancel → await → free
+(** ** Korolari: ◇ₖA ⊬ A untuk A tanpa ◇ *)
 
-    [buf] adalah atom, dan [free] adalah hipotesis [buf ⊸ 1] di konteks.
-    Resource diserahkan ([submit]), future di-cancel ([cancel]), resource
-    diambil kembali hanya lewat [await], lalu dibebaskan. Langkah submit
-    disambung ke sisanya dengan [cut] (teorema di [CutElim.v]). *)
+Fixpoint no_dia (A : form) : Prop :=
+  match A with
+  | Atom _ => True
+  | One => True
+  | Tensor A B => no_dia A /\ no_dia B
+  | Lolli A B => no_dia A /\ no_dia B
+  | Plus A B => no_dia A /\ no_dia B
+  | Dia _ _ => False
+  end.
 
-Definition buf : form := Atom 0.
-Definition free : form := Lolli buf One.
+(** Formula yang boleh ada di konteks invariant: tanpa ◇, atau ◇ di puncak. *)
+Definition top_dia_or_free (A : form) : Prop :=
+  no_dia A \/ exists k B, A = Dia k B.
 
-Example sanity_submit_cancel_await_free : forall k : nat,
-  seq true [buf; free] One.
+Lemma Forall_perm : forall (P : form -> Prop) l l',
+  Permutation l l' -> Forall P l -> Forall P l'.
 Proof.
-  intro k.
-  (* submit: buf ⊢ ◇ₖ buf *)
-  assert (s_submit : seq true [buf] (Dia k buf)) by exact (submit k (id_atom 0)).
-  (* free: buf, buf ⊸ 1 ⊢ 1 *)
-  assert (s_free : seq true [buf; free] One).
-  { apply (exchange (D := [free; buf])); [apply perm_swap |].
-    exact (lolli_L (D1 := [buf]) (D2 := []) (id_atom 0) (one_L one_R)). }
-  (* cancel lalu await: ◇ₖ buf, buf ⊸ 1 ⊢ 1 *)
-  assert (s_cancel_await : seq true [Dia k buf; free] One)
-    by exact (cancel (await eq_refl s_free)).
-  exact (cut true [buf] [free] (Dia k buf) One s_submit s_cancel_await).
+  intros P l l' Hp H. rewrite Forall_forall in *. intros x Hx.
+  apply H. exact (Permutation_in x (Permutation_sym Hp) Hx).
 Qed.
 
-(** ** ◇ₖA ⊢ A bisa diturunkan lewat await
-
-    Ini konsekuensi langsung aturan [await] seperti dirumuskan di proposal
-    (await : ◇ₖA ⊸ A). Karena itu pernyataan "◇ₖA ⊢ A tidak bisa diturunkan"
-    tidak berlaku untuk logika dengan await; lihat README, bagian Konflik. *)
-
-Example dia_elim_via_await : forall k A, seq true [Dia k A] A.
-Proof. intros k A. exact (await eq_refl (identity A)). Qed.
-
-(** ** Korolari: tanpa await, ◇ₖp ⊬ p
-
-    Di fragmen tanpa [await] ([aw = false]), tidak ada aturan yang mengubah
-    ◇ₖp menjadi p; khususnya [cancel] tidak pernah menghasilkan p. Bukti lewat
-    inversi pada sistem cut-free: tidak ada aturan kanan untuk atom, [id_atom]
-    butuh p di konteks, aturan kiri lain butuh formula utama yang bukan ◇, dan
-    [cancel] serta [exchange] mempertahankan bentuk sequent. *)
-
-Lemma no_await_inv : forall G C, seq false G C ->
-  forall k n, Permutation G [Dia k (Atom n)] -> C = Atom n -> False.
+(** Invariant inversi pada sistem cut-free: bila goal tanpa ◇ dan setiap
+    formula konteks tanpa ◇ atau ◇ di puncak, maka konteksnya sama sekali
+    tanpa ◇. Hanya [submit] dan [await] yang bisa menghasilkan goal ◇; dan
+    [cancel] mempertahankan ◇ di puncak, jadi hipotesis induksinya langsung
+    kontradiktif. *)
+Lemma dia_free_inv : forall G C, seq G C ->
+  Forall top_dia_or_free G -> no_dia C -> Forall no_dia G.
 Proof.
   intros G C E.
   induction E as
-    [ m
-    | G G' C0 Hx E' IHE
+    [ n
+    | G G' C0 Hp E' IHE
     |
     | G C0 E' IHE
     | Ga Gb X Y Ea IHa Eb IHb
     | G X Y C0 E' IHE
     | G X Y E' IHE
     | Ga Gb X Y C0 Ea IHa Eb IHb
+    | G X Y E' IHE
+    | G X Y E' IHE
+    | G X Y C0 E1 IH1 E2 IH2
     | G k X E' IHE
-    | G k X C0 Haw E' IHE
-    | G k X C0 E' IHE ];
-    intros k0 n0 Hp HC; try discriminate HC.
+    | G k j X C0 E' IHE
+    | G k Rr Xx C0 E' IHE ];
+    intros HG HC.
   - (* id_atom *)
-    apply Permutation_length_1 in Hp. discriminate Hp.
+    repeat constructor.
   - (* exchange *)
-    exact (IHE k0 n0 (Permutation_trans Hx Hp) HC).
+    apply (Forall_perm _ _ _ Hp).
+    exact (IHE (Forall_perm _ _ _ (Permutation_sym Hp) HG) HC).
+  - (* one_R *)
+    constructor.
   - (* one_L *)
-    pose proof (Permutation_in One Hp (in_eq _ _)) as Hin.
-    destruct Hin as [Hin | []]. discriminate Hin.
+    apply Forall_cons_iff in HG as [_ HG].
+    constructor; [exact I | exact (IHE HG HC)].
+  - (* tensor_R *)
+    destruct HC as [HX HY]. apply Forall_app in HG as [Ha Hb].
+    apply Forall_app. split; [exact (IHa Ha HX) | exact (IHb Hb HY)].
   - (* tensor_L *)
-    pose proof (Permutation_in (Tensor X Y) Hp (in_eq _ _)) as Hin.
-    destruct Hin as [Hin | []]. discriminate Hin.
+    apply Forall_cons_iff in HG as [Hh HG].
+    assert (hT : no_dia (Tensor X Y)).
+    { destruct Hh as [h | (k & B & e)]; [exact h | discriminate e]. }
+    destruct hT as [hX hY].
+    pose proof (IHE (Forall_cons _ (or_introl hX) (Forall_cons _ (or_introl hY) HG)) HC)
+      as Hr.
+    apply Forall_cons_iff in Hr as [_ Hr]. apply Forall_cons_iff in Hr as [_ Hr].
+    constructor; [split; assumption | exact Hr].
+  - (* lolli_R *)
+    destruct HC as [hX hY].
+    pose proof (IHE (Forall_cons _ (or_introl hX) HG) hY) as Hr.
+    apply Forall_cons_iff in Hr as [_ Hr]. exact Hr.
   - (* lolli_L *)
-    pose proof (Permutation_in (Lolli X Y) Hp (in_eq _ _)) as Hin.
-    destruct Hin as [Hin | []]. discriminate Hin.
-  - (* await: tidak ada di fragmen ini *)
-    discriminate Haw.
-  - (* cancel *)
-    exact (IHE k0 n0 Hp HC).
+    apply Forall_cons_iff in HG as [Hh HG].
+    assert (hT : no_dia (Lolli X Y)).
+    { destruct Hh as [h | (k & B & e)]; [exact h | discriminate e]. }
+    destruct hT as [hX hY]. apply Forall_app in HG as [Ha Hb].
+    pose proof (IHb (Forall_cons _ (or_introl hY) Hb) HC) as Hr.
+    apply Forall_cons_iff in Hr as [_ Hr].
+    constructor; [split; assumption |].
+    apply Forall_app. split; [exact (IHa Ha hX) | exact Hr].
+  - (* plus_R1 *)
+    destruct HC as [hX _]. exact (IHE HG hX).
+  - (* plus_R2 *)
+    destruct HC as [_ hY]. exact (IHE HG hY).
+  - (* plus_L *)
+    apply Forall_cons_iff in HG as [Hh HG].
+    assert (hT : no_dia (Plus X Y)).
+    { destruct Hh as [h | (k & B & e)]; [exact h | discriminate e]. }
+    destruct hT as [hX hY].
+    pose proof (IH1 (Forall_cons _ (or_introl hX) HG) HC) as Hr.
+    apply Forall_cons_iff in Hr as [_ Hr].
+    constructor; [split; assumption | exact Hr].
+  - (* submit: goal ◇ *)
+    destruct HC.
+  - (* await: goal ◇ *)
+    destruct HC.
+  - (* cancel: konteks premis masih memuat ◇ di puncak *)
+    apply Forall_cons_iff in HG as [_ HG].
+    assert (Hd : top_dia_or_free (Dia k (Tensor Rr (Plus Xx One)))).
+    { right. eauto. }
+    pose proof (IHE (Forall_cons _ Hd HG) HC) as Hr.
+    apply Forall_cons_iff in Hr as [Hr _]. destruct Hr.
 Qed.
 
-Corollary dia_atom_not_elim_without_await : forall k n,
-  ~ seq false [Dia k (Atom n)] (Atom n).
+Theorem dia_not_elim : forall k A, no_dia A -> ~ seq [Dia k A] A.
 Proof.
-  intros k n E. exact (no_await_inv _ _ E k n (Permutation_refl _) eq_refl).
+  intros k A HA E.
+  assert (Hd : top_dia_or_free (Dia k A)) by (right; eauto).
+  pose proof (dia_free_inv _ _ E (Forall_cons _ Hd (Forall_nil _)) HA) as Hr.
+  apply Forall_cons_iff in Hr as [Hr _]. destruct Hr.
 Qed.
 
-(** Dengan [cut_admissible] untuk [aw = false], korolari ini juga berlaku
-    untuk fragmen tanpa await yang diberi aturan cut: menambah cut tidak
-    menambah sequent yang bisa diturunkan. *)
+(** ** Kenapa batasan "tanpa ◇" perlu: ◇₀(◇ⱼB) ⊢ ◇ⱼB *)
+
+Example dia0_dia : forall j B, seq [Dia 0 (Dia j B)] (Dia j B).
+Proof. intros j B. exact (await 0 (identity (Dia j B))). Qed.
+
+(** ** cancel bisa diturunkan dari submit, await (k dan 0), dan cut
+
+    ◇ₖ(R ⊗ X) ⊢ ◇ₖ(R ⊗ (X ⊕ 1)) diturunkan dengan [await k] di atas
+    [submit 0]; grade-nya k + 0 = k. Cut dengan premis [cancel] memberi
+    kesimpulannya. Bukti ini tidak memakai konstruktor [cancel]. *)
+
+Lemma cancel_admissible : forall k R X D C,
+  seq (Dia k (Tensor R (Plus X One)) :: D) C ->
+  seq (Dia k (Tensor R X) :: D) C.
+Proof.
+  intros k R X D C E.
+  assert (h : seq [Dia k (Tensor R X)] (Dia k (Tensor R (Plus X One)))).
+  { pose proof (await k (submit 0
+      (tensor_L (tensor_R (identity R) (plus_R1 One (identity X)))))) as H.
+    rewrite Nat.add_0_r in H. exact H. }
+  exact (cut [Dia k (Tensor R X)] D _ C h E).
+Qed.
+
+(** ** Sanity check (bukan hasil): submit → cancel → await → free
+
+    [buf] adalah atom, dan [free] adalah hipotesis [buf ⊸ 1] di konteks.
+    Future membawa resource [buf] dan hasil [1]. Setelah cancel, hasilnya
+    menjadi [1 ⊕ 1]. Karena await lax, [free] terjadi di dalam future, jadi
+    goal-nya ◇ₖ1. Langkah submit disambung ke sisanya dengan [cut]. *)
+
+Definition buf : form := Atom 0.
+Definition free : form := Lolli buf One.
+
+Example sanity_submit_cancel_await_free : forall k : nat,
+  seq [buf; free] (Dia k One).
+Proof.
+  intro k.
+  (* submit: buf ⊢ ◇ₖ(buf ⊗ 1) *)
+  assert (s_submit : seq [buf] (Dia k (Tensor buf One)))
+    by exact (submit k (tensor_R (D1 := [buf]) (D2 := []) (id_atom 0) one_R)).
+  (* free: buf, buf ⊸ 1 ⊢ 1 *)
+  assert (s_free : seq [buf; free] One).
+  { apply (exchange (D := [free; buf])); [apply perm_swap |].
+    exact (lolli_L (D1 := [buf]) (D2 := []) (id_atom 0) (one_L one_R)). }
+  (* isi future setelah cancel: buf ⊗ (1 ⊕ 1), buf ⊸ 1 ⊢ 1 *)
+  assert (s_body : seq [Tensor buf (Plus One One); free] One).
+  { apply tensor_L.
+    apply (exchange (D := [Plus One One; buf; free])); [apply perm_swap |].
+    exact (plus_L (one_L s_free) (one_L s_free)). }
+  (* await: ◇ₖ(buf ⊗ (1 ⊕ 1)), buf ⊸ 1 ⊢ ◇ₖ1 *)
+  assert (s_await : seq [Dia k (Tensor buf (Plus One One)); free] (Dia k One)).
+  { pose proof (await k (submit 0 s_body)) as H.
+    rewrite Nat.add_0_r in H. exact H. }
+  (* cancel: ◇ₖ(buf ⊗ 1), buf ⊸ 1 ⊢ ◇ₖ1 *)
+  assert (s_cancel : seq [Dia k (Tensor buf One); free] (Dia k One))
+    by exact (cancel s_await).
+  exact (cut [buf] [free] _ _ s_submit s_cancel).
+Qed.
