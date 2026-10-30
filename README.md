@@ -223,5 +223,7 @@ cd theories && for f in Syntax Sequent Identity CutElim Examples; do rocq compil
 ```
 
 CI (`.github/workflows/ci.yml`) uses the official `rocq/rocq-prover:9.1` image
-via `coq-community/docker-coq-action`. There is no image tagged 9.1.0, so the
-exact version is forced through the dependencies in `ledger-calculus.opam`.
+via `coq-community/docker-coq-action`. There is no image tagged 9.1.0, so
+`ledger-calculus.opam` accepts the 9.1.x series (`rocq-core >= 9.1.0 < 9.2.0`,
+`rocq-stdlib >= 9.0.0 < 9.2.0`), which covers both the development machine and
+the CI image.
