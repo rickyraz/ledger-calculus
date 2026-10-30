@@ -5,7 +5,7 @@ Artefak riset untuk teori Ledger Calculus: sequent calculus kecil untuk
 bukti, bukan tooling.
 
 Sumber kebenaran untuk istilah, notasi, klaim, dan referensi adalah proposal
-[`docs/ledger-calculus.pdf`](docs/ledger-calculus.pdf). Aturan inferensi yang
+[`docs/ledger-calculus.md`](docs/ledger-calculus.md). Aturan inferensi yang
 diformalkan ada di [`docs/rules.md`](docs/rules.md).
 
 ## 1. Apa ini
@@ -19,7 +19,7 @@ logika untuk future linear yang bisa di-cancel tanpa melepaskan resource-nya.
 
 ## 2. Konjektur inti
 
-Dikutip dari bagian 11 proposal (simbol ◇ₖ dipulihkan dari PDF):
+Dikutip dari bagian 11 proposal:
 
 > Ada adjoint logic bergraded dengan modality pinjaman ◇ₖ dan aturan cancel di
 > atas, sehingga (1) cut elimination berlaku dan berkorespondensi dengan
