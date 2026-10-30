@@ -7,7 +7,7 @@ sebaliknya.
 ## Formula
 
 ```
-A, B ::= p | 1 | A ⊗ B | A ⊸ B | ◇ₖA        (p atom, k : nat)
+A, B ::= p | 1 | A ⊗ B | A ⊸ B | A ⊕ B | ◇ₖA        (p atom, k : nat)
 ```
 
 ## Sequent
@@ -23,14 +23,6 @@ yang dipecah ditulis `Δ₁, Δ₂` (konkatenasi list).
 
 Tidak ada weakening dan tidak ada contraction. Tidak ada aturan cut; cut
 adalah teorema (`cut_admissible` di `CutElim.v`).
-
-## Parameter fragmen `aw`
-
-Relasi derivasi diberi satu parameter boolean `aw`. Hanya aturan `await` yang
-memakainya: `await` hanya berlaku bila `aw = true`. Logika yang dimaksud
-proposal adalah `aw = true`. Fragmen `aw = false` (logika tanpa `await`)
-dipakai untuk menyatakan bahwa tidak ada aturan lain yang mengubah ◇ₖA
-menjadi A.
 
 ## Aturan
 
@@ -87,40 +79,62 @@ menjadi A.
    A ⊸ B, Δ₁, Δ₂ ⊢ C
 ```
 
+### Plus ⊕
+
+```
+     Δ ⊢ A
+  ─────────── plus_R1
+   Δ ⊢ A ⊕ B
+
+
+     Δ ⊢ B
+  ─────────── plus_R2
+   Δ ⊢ A ⊕ B
+
+
+   A, Δ ⊢ C     B, Δ ⊢ C
+  ─────────────────────── plus_L
+       A ⊕ B, Δ ⊢ C
+```
+
 ### Future ◇ₖ
 
 ```
     Δ ⊢ A
-  ────────── submit          (◇ₖ-kanan)
+  ────────── submit          (◇ₖ-kanan, untuk setiap k)
    Δ ⊢ ◇ₖA
 
 
-   A, Δ ⊢ C
-  ───────────── await        (◇ₖ-kiri; hanya bila aw = true)
-   ◇ₖA, Δ ⊢ C
+      A, Δ ⊢ ◇ⱼC
+  ────────────────── await   (◇ₖ-kiri, lax bergraded)
+   ◇ₖA, Δ ⊢ ◇₍ₖ₊ⱼ₎C
 
 
-   ◇ₖA, Δ ⊢ C
-  ───────────── cancel
-   ◇ₖA, Δ ⊢ C
+   ◇ₖ(R ⊗ (X ⊕ 1)), Δ ⊢ C
+  ───────────────────────── cancel
+     ◇ₖ(R ⊗ X), Δ ⊢ C
 ```
 
 Catatan:
 
-- `submit` membaca `submit : A ⊸ ◇ₖA` dari bagian 11 proposal.
-- `await` membaca `await : ◇ₖA ⊸ A`: ◇ₖA di konteks boleh dipakai sebagai A.
-- `cancel` membaca `cancel : ◇ₖA ⊸ ◇ₖA`. Premis dan kesimpulannya sama: cancel
-  tidak menghasilkan A dan tidak menghapus ◇ₖA dari konteks. Secara
-  derivabilitas aturan ini tidak menambah teorema; isinya baru muncul di term
-  assignment (tahap berikutnya), sebagai aksi protocol.
-- Grade `k` belum dipakai oleh aturan mana pun: `submit`, `await`, dan
-  `cancel` berlaku untuk setiap `k` dan tidak mengubahnya.
-- `free : A ⊸ 1` dari proposal bukan aturan logika. Di `Examples.v` ia muncul
-  sebagai hipotesis `buf ⊸ 1` di konteks.
+- `submit` membaca `submit : A ⊸ ◇ₖA`. Grade k bebas dipilih.
+- `await` adalah aturan lax: isi future (A) hanya boleh dipakai bila goal juga
+  sebuah future. Grade-nya dijumlahkan: menunggu future bergrade k lalu
+  menjalankan sisa yang bergrade j memberi future bergrade k + j. Akibatnya
+  ◇ₖA tidak lagi setara dengan A.
+- `cancel` bekerja pada future yang membawa resource R dan hasil X. Setelah
+  cancel, hasilnya menjadi X ⊕ 1 (selesai, atau dibatalkan tanpa hasil),
+  sedangkan R tetap ada di dalam future: cancel tidak pernah mengembalikan R
+  atau X keluar dari ◇ₖ.
+- `free : A ⊸ 1` bukan aturan logika. Di `Examples.v` ia muncul sebagai
+  hipotesis `buf ⊸ 1` di konteks.
 
 ## Teorema tentang aturan (bukan aturan)
 
 | Nama | Pernyataan | File |
 |------|------------|------|
-| `identity` | `A ⊢ A` untuk setiap A (dengan `aw = true`) | `Identity.v` |
-| `cut_admissible` | bila `Δ₁ ⊢ A` dan `Γ ⊢ C` dengan Γ permutasi dari `A, Δ₂`, maka `Δ₁, Δ₂ ⊢ C` (untuk setiap `aw`) | `CutElim.v` |
+| `identity` | `A ⊢ A` untuk setiap A | `Identity.v` |
+| `dia_mono` | bila `Δ ⊢ ◇ⱼC` dan `j ≤ n`, maka `Δ ⊢ ◇ₙC` | `CutElim.v` |
+| `cut_admissible` | bila `Δ₁ ⊢ A`, `Γ ⊢ C`, Γ permutasi dari `A', Δ₂`, dan A' adalah A dengan sebagian subformula positif X diganti X ⊕ 1 (`ext A A'`), maka `Δ₁, Δ₂ ⊢ C` | `CutElim.v` |
+| `cut` | bila `Δ₁ ⊢ A` dan `A, Δ₂ ⊢ C`, maka `Δ₁, Δ₂ ⊢ C` | `CutElim.v` |
+| `cancel_admissible` | aturan `cancel` bisa diturunkan dari `submit`, `await`, dan `cut` | `Examples.v` |
