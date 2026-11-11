@@ -20,6 +20,13 @@ Two steps, in this order:
 Not chosen: a fork of the Zig compiler, and a new language with its own
 compiler.
 
+This confirms what the proposal already says in its section on Zig: `comptime`
+cannot read the body of a function, so the checker cannot be an ordinary
+library; the solution is an external checker with annotations as `comptime`
+wrapper types, for a subset of Zig, and "the binary is still compiled by the
+ordinary Zig compiler". The record exists because a custom compiler was
+considered on 2026-11-11 and rejected.
+
 ## The options that were compared
 
 | # | Option | What it can enforce | Cost |
