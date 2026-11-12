@@ -1,0 +1,4 @@
+(rocq.theory
+ (name LedgerExp)
+ (mode vo)
+ (theories Stdlib))

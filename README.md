@@ -146,6 +146,12 @@ Not yet done:
   normalization-length bounds, and a categorical model (section 11, steps 2
   through 4).
 
+Work in progress outside `theories/`: because `cancel` here is admissible, it
+models nothing. [`experiments/`](experiments/README.md) tests three candidate
+cancel rules that are not admissible. Two of them break cut; the third, an
+in-flight token separate from ◇, keeps cut and passes a list of negative tests.
+None of it is part of the formalized system above yet.
+
 ## 6. Position
 
 [Back to Futures](https://arxiv.org/abs/2002.04607) (Pruiksma & Pfenning,
@@ -175,6 +181,10 @@ Completed/Cancelled) is where the cancel rules here will be tested. ZBeam is a
 future case study; its model will later live in
 `theories/case_studies/zbeam/`. That folder does not exist yet, and this repo
 contains no Zig code.
+
+How the logic is meant to reach ZBeam code is recorded in
+[`docs/implementation-path.md`](docs/implementation-path.md): `comptime`
+wrappers first, then a separate checker; no custom compiler.
 
 ## 8. Roadmap
 
