@@ -8,7 +8,7 @@ Ledger Calculus is a research program, not an established theory. The idea: ever
 
 The name summarizes its moral axiom: no resource without origin, no effect without a record, no cost outside the books. Its core calculus is called λ-Ledger.
 
-The intended contribution is a single judgment in which ownership, protocols, effects, correctness, and cost are recorded together and can be inferred for Zig, a language with explicit allocation and I/O. Many of the individual pieces already exist in the Iris and resource-analysis ecosystems. The open question this work addresses is how they compose, starting with cancellable linear futures and the `std.Io` contract. ZBeam serves as the first user and feasibility proof.
+The intended contribution is a single judgment in which ownership, protocols, effects, correctness, and cost are recorded together, built up in stages (cancellable linear futures and ownership first, then costs, effects, and protocols), and inferred for Zig, a language with explicit allocation and I/O. Many of the individual pieces already exist in the Iris and resource-analysis ecosystems. The open question this work addresses is how they compose, starting with cancellable linear futures and the `std.Io` contract. ZBeam serves as the first user and feasibility proof.
 
 ## 1. Problem
 
