@@ -38,7 +38,7 @@ Most Ledger components have already been solved separately, and the Iris ecosyst
 
 | Component | Existing work | Already covered | Not yet covered |
 |-----------|---------------|-----------------|-----------------|
-| Concurrent state & ownership | Iris (Jung et al., ESOP 2017; JFP 2018) | Higher-order separation logic, invariants, ghost state | Interactive manual proofs in Rocq |
+| Concurrent state & ownership | Iris (Krebbers et al., ESOP 2017; Jung et al., JFP 2018) | Higher-order separation logic, invariants, ghost state | Interactive manual proofs in Rocq |
 | Costs in separation logic | Time credits & time receipts in Iris (Mével, Jourdan, Pottier, ESOP 2019) | Upper bound on time as a logical resource | One dimension (time), still manual |
 | Effect handlers | Hazel (de Vilhena & Pottier, POPL 2021) | Reasoning about handlers in Iris | One-shot continuations only, no costs |
 | Message-passing protocols | Actris (Hinrichsen, Bengtson, Krebbers, POPL 2020) | Dependent separation protocols + functional correctness | No costs |
@@ -165,6 +165,8 @@ Syntax and typing rules are not enough. This calculus is only worthwhile if the 
 8. **Contextual refinement.** No valid context can observe a specification violation.
 9. **Compiler preservation.** Compilation preserves safety, observable effects, protocols, and the cost relation cost_machine ≤ a · cost_source + b.
 
+Scope note on adequacy. The standard Iris adequacy theorem (Jung et al., JFP 2018, Theorems 6 and 7) establishes that a proved weakest precondition implies the program does not get stuck and that its result satisfies the postcondition. Trillium (Timany et al., POPL 2024) points out that this is a particular class of safety properties, and that Iris's step-indexed model does not express liveness properties directly. Claims such as freedom from deadlock (section 11, conjecture 3) therefore need either a refinement-based extension in the style of Trillium, a transfinite step-index model, or a restriction to safety.
+
 ## 8. Target: Zig, with ZBeam as feasibility proof
 
 Ledger has the most impact when installed at the language level, not in a single program. The target is Zig: one contract in `Allocator` and `std.Io` applies to every program that uses it.
@@ -199,7 +201,8 @@ The solution is an external checker that reads ZIR/AIR, with annotations as `com
 Rust already has a formal foundation (RustBelt, on top of Iris) and several mature verifiers (Verus, Prusti, Creusot). Zig does not yet have a RustBelt counterpart, but that does not mean the space is empty:
 
 - CLR (Checker for Lifetimes and other Refinement types) analyzes AIR to bring Rust-equivalent memory-safety guarantees to Zig. It uses a Zig compiler fork that forwards AIR to an external plugin.
-- Zirakzigil adds contracts, refinement types, an ownership backstop, and an SMT verifier on top of the standard Zig compiler, without new syntax.
+- Zirakzigil adds contracts, refinement types, runtime ownership checks, a static ownership checker (`zv-own`), and a Z3-based verifier (`zvc`), without new syntax. Its README states that the verifier covers only a fragment of AIR and relies on a pinned, patched compiler build (`zig-zv`).
+- zbc is a static analyzer that infers lifetime, ownership, and cleanup bugs in Zig code without annotations, and zwanzig is a static analyzer that combines AST rules with CFG analysis built on ZIR output. Neither README states a soundness claim.
 - zig-spec is the official effort for mechanized Zig specifications, but it has only just begun.
 
 So the "external checker over AIR" approach already has prior art. Ledger's remaining contribution is threefold: (1) costs, effects, and protocols, not just lifetimes; (2) the `std.Io` contract and its futures; (3) soundness proved foundationally in Iris. CLR is a candidate basis for phase 4, not a competitor.
@@ -393,6 +396,7 @@ Each reference links to the authors' PDF, arXiv, or the publisher's DOI.
 - Krebbers et al. [The Essence of Higher-Order Concurrent Separation Logic](https://iris-project.org/pdfs/2017-esop-iris3-final.pdf), ESOP 2017
 - [Lecture Notes on Iris](https://iris-project.org/tutorial-pdfs/iris-lecture-notes.pdf)
 - Jung et al. [Iris from the Ground Up](https://cs.au.dk/~birke/papers/iris-journal.pdf), JFP 2018
+- Timany, Gregersen, Stefanesco, Hinrichsen, Gondelman, Nieto, Birkedal. [Trillium: Higher-Order Concurrent and Distributed Separation Logic for Intensional Refinement](https://arxiv.org/pdf/2109.07863), POPL 2024
 - Mével, Jourdan, Pottier. [Time Credits and Time Receipts in Iris](https://iris-project.org/pdfs/2019-esop-time.pdf), ESOP 2019
 - de Vilhena, Pottier. [A Separation Logic for Effect Handlers](https://doi.org/10.1145/3434314), POPL 2021
 - Hinrichsen, Bengtson, Krebbers. [Actris: Session-Type Based Reasoning in Separation Logic](https://doi.org/10.1145/3371074), POPL 2020
@@ -417,6 +421,8 @@ Comparisons and prior art (section 8):
 - [Creusot](https://github.com/creusot-rs/creusot)
 - [CLR: Checker for Lifetimes and other Refinement types for Zig](https://github.com/ityonemo/clr)
 - [Zirakzigil](https://github.com/hotschmoe/zirakzigil)
+- [zbc: static analyzer for Zig lifetime, ownership, and cleanup bugs](https://github.com/ericsssan/zbc)
+- [zwanzig: static analyzer and linter for Zig](https://github.com/forketyfork/zwanzig)
 - [zig-spec — Zig specification (informal and mechanized)](https://codeberg.org/ziglang/zig-spec)
 
 Fundamental direction (section 11):

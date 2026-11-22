@@ -65,7 +65,10 @@ The linear context is a `list form`, with an explicit `exchange` rule (based on
 `Permutation` from the Rocq stdlib). The derivability relation is `seq Δ C`,
 without parameters.
 
-Pure Rocq: stdlib only, no Iris, no third-party libraries, no `Axiom`.
+Pure Rocq: stdlib only, no Iris, no third-party libraries, no `Axiom`. This
+describes the current fragment, whose proofs are syntactic (induction on
+derivations). The proposal plans Iris for the later semantic phases (section
+8); whether it is needed has not been decided.
 
 ## 4. Status
 
@@ -205,6 +208,14 @@ Summary of section 10 of the proposal:
 This repo sits before those phases, at step 1 of section 11 ("add cancel rules
 to linear futures and prove cut elimination"), for the fragment without cost
 semantics and without adjoint modes.
+
+The use of Iris in phase 1 is the proposal's plan, not something this repo has
+adopted. A first semantic stage (term language, reduction, progress,
+preservation) does not by itself require it. Safety claims (for example no
+use-after-free) fit the standard Iris adequacy theorem, but liveness claims
+(for example freedom from deadlock) do not fit it directly, because Iris's
+step-indexed model only expresses properties of finite execution prefixes
+(Trillium, POPL 2024).
 
 ## 9. Build
 
