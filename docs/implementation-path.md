@@ -15,7 +15,7 @@ Two steps, in this order:
    declared in user code without changing the language. The proposal already
    lists this in its table of Zig features.
 2. **A separate checker.** A tool that reads Zig code and rejects programs that
-   break the token protocol. This is phase 4 of the roadmap (README section 8).
+   break the token protocol. This is phase 4 of the roadmap (proposal section 10).
 
 Not chosen: a fork of the Zig compiler, and a new language with its own
 compiler.
@@ -58,7 +58,7 @@ will change when the rules change.
 Step 2 needs more than this repository has:
 
 - A term language. A checker checks programs, and the logic currently has
-  formulas and rules but no programs (README section 5, "Not yet done").
+  formulas and rules but no programs (README, "Next").
 - A fixed set of rules. Candidate C is not final; its kernel is a hypothesis
   and the two-mode design it points to is untested (`experiments/README.md`).
 - A statement of what the checker guarantees. That the checker is faithful to
