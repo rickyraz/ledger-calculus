@@ -318,20 +318,27 @@ Sections 3–10 do not yet satisfy all four. This section is the path to achievi
 | ◇ as "eventually" | Fair Reactive Programming (Cave et al.); Lively RaTT (Bahr et al., POPL 2021) | Exists, for values that change over time, not resources |
 | Resource safety + exceptions via Curry–Howard | Curry-Howard for destructors (Congard, Munch-Maccagnoni, Douence, 2025) | Exists; borrowing is mentioned as an open problem |
 | Borrowing semantics | From Linearity to Borrowing (OOPSLA 2025) | Exists, for lexical lifetimes, without asynchronous third parties |
-| Cancellable linear futures without releasing resources | — | Not found |
+| A modality with the shape of submit/await | Lax logic (Fairtlough & Mendler, 1997); graded (parametric effect) monads (Katsumata, POPL 2014) | Exists; ◇ₖ below is a graded lax modality, not a new connective |
+| Cancellation in Curry–Howard concurrency | Message-passing adjoint logic (Pruiksma & Pfenning, PLACES 2019) | Exists, on affine channels: a client may communicate or cancel, and cancellation is weakening |
+| Cancellation and failure in session types | Affine Sessions (Mostrous & Vasconcelos, LMCS 2018); Exceptional Asynchronous Session Types (Fowler et al., POPL 2019) | Exists, as dropping or cancelling an endpoint |
+| Cancellable linear futures without releasing resources | — | Not found in a limited search |
 
-In practice, the problem is real and has not been solved at the logic level. uringscope (2026) names io_uring buffer-ownership contract checking as a gap that has not been filled. withoutboats concludes that the kernel must own the buffer. rustfs-uring enforces the same rules through an orphan table and acceptance tests, not through logic.
+The last row has to be read against the two cancellation rows above it. There, cancelling gives up the channel. The target here is different: cancelling is a request, the holder keeps the resource until the operation completes, and the resource must still be awaited. Whether this needs a new rule has not been shown. The use rules of an in-flight operation resemble a choice (the additive &, "await" or "cancel, then await") over ◇, so a new rule has to be justified against that encoding, with an abstract type to stop user code from building operations itself.
+
+In practice, the problem is real, and no solution at the logic level has been found so far. uringscope (2026) calls correctness checking of the io_uring buffer-ownership contract a separate and, to the author's knowledge, unoccupied point, and places its own runtime check there; that check is bounded and does not cover every use-after-free variant. withoutboats concludes that the kernel must own the buffer. rustfs-uring enforces the same rules through an orphan table and acceptance tests, not through logic.
 
 ### Logical reading
 
 | Rule | Reading |
 |------|---------|
 | submit : A ⊸ ◇ₖA | hand over a resource, receive a promise back in ≤ k steps |
-| await : ◇ₖA ⊸ A | the only way to get the resource back |
-| cancel : ◇ₖA ⊸ ◇ₖA | cancel is a protocol action, not a destruction |
+| await: from A, Δ ⊢ ◇ⱼC infer ◇ₖA, Δ ⊢ ◇ₖ₊ⱼC | the only way to use the content, and only to build another future; the grades add up |
+| cancel: from ◇ₖ(R ⊗ (X ⊕ 1)), Δ ⊢ C infer ◇ₖ(R ⊗ X), Δ ⊢ C | cancel is a protocol action, not a destruction: R stays inside the future, the result may be missing |
 | free : A ⊸ 1 | free only accepts A |
 
-This logic has no rule ◇A ⊢ A other than through await. As a result, use-after-free on cancellation is not a bug the checker catches. It is a proof that cannot be derived.
+In this logic ◇ₖA ⊢ A is not derivable (for A without ◇). As a result, use-after-free on cancellation is not a bug the checker catches. It is a proof that cannot be derived. This is a statement about derivability only: there are no programs or execution semantics yet.
+
+Two limits of these rules are known. An earlier form of this table wrote await : ◇ₖA ⊸ A, which makes ◇ₖA equivalent to A, and cancel : ◇ₖA ⊸ ◇ₖA, which is only the identity. The cancel rule above is also derivable from submit, await, and cut, so it does not yet model cancellation. Candidate rules that do are being tested in `experiments/`.
 
 ### Conjecture
 
@@ -351,8 +358,9 @@ If successful, the result also answers part of the open problem of Congard et al
 
 ### Risks
 
-- The full contents of Back to Futures have not been read. The claim that the paper does not model cancellation is still a conjecture.
-- The cancellation literature in session types has not been re-reviewed. Some cancel rules may already exist there.
+- The full contents of Back to Futures have not been read. A keyword search of its arXiv version 2 finds no mention of cancellation, but the same authors treat cancellation on affine channels in their PLACES 2019 paper.
+- The cancellation literature has only been partly reviewed. The works on affine sessions and exceptional session types cited above have not been read in full. Some cancel rules may already exist there.
+- The in-flight operation may turn out to be definable with standard connectives, in which case the contribution is an application and a mechanization, not a new logic.
 - This is pure logic research. Cut elimination with cancel rules may fail to hold, or may be too weak to capture real I/O cancellation.
 
 ## 12. Position map: Fil-C, Zig, and ZBeam
@@ -428,6 +436,11 @@ Comparisons and prior art (section 8):
 Fundamental direction (section 11):
 
 - Pruiksma, Pfenning. [Back to Futures](https://arxiv.org/abs/2002.04607), JFP 2022
+- Pruiksma, Pfenning. [A Message-Passing Interpretation of Adjoint Logic](https://arxiv.org/abs/1904.01290), PLACES 2019
+- Fairtlough, Mendler. [Propositional Lax Logic](https://doi.org/10.1006/inco.1997.2627), Information and Computation 1997
+- Katsumata. [Parametric Effect Monads and Semantics of Effect Systems](https://doi.org/10.1145/2535838.2535846), POPL 2014
+- Mostrous, Vasconcelos. [Affine Sessions](https://arxiv.org/abs/1809.02781), LMCS 2018
+- Fowler, Lindley, Morris, Decova. [Exceptional Asynchronous Session Types: Session Types without Tiers](https://doi.org/10.1145/3290341), POPL 2019
 - Cave, Ferreira, Panangaden, Pientka. [Fair Reactive Programming](https://www.cs.mcgill.ca/~acave1/papers/fair-reactive-long.pdf), POPL 2014
 - Bahr, Graulund, Møgelberg. [Diamonds are not forever: Liveness in Reactive Programming with Guarded Recursion](https://arxiv.org/abs/2003.03170), POPL 2021
 - Congard, Munch-Maccagnoni, Douence. [Linear Effects, Exceptions, and Resource Safety: a Curry-Howard Correspondence for Destructors](https://arxiv.org/abs/2510.23517), arXiv 2025

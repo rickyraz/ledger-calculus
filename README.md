@@ -158,9 +158,14 @@ None of it is part of the formalized system above yet.
 ## 6. Position
 
 [Back to Futures](https://arxiv.org/abs/2002.04607) (Pruiksma & Pfenning,
-JFP 2022) already gives linear futures via Curry-Howard for adjoint logic; the
-proposal notes that the claim "that paper does not model cancellation" is still
-a conjecture because its contents have not been read in full. ◇ as
+JFP 2022) already gives linear futures via Curry-Howard for adjoint logic. Its
+contents have not been read in full; the same authors treat cancellation on
+affine channels in
+[a message-passing interpretation of adjoint logic](https://arxiv.org/abs/1904.01290)
+(PLACES 2019). The shape of ◇ₖ is that of a graded lax modality
+([lax logic](https://doi.org/10.1006/inco.1997.2627), Fairtlough & Mendler
+1997; [parametric effect monads](https://doi.org/10.1145/2535838.2535846),
+Katsumata, POPL 2014), so no novelty is claimed for it either. ◇ as
 "eventually" already appears in
 [Fair Reactive Programming](https://www.cs.mcgill.ca/~acave1/papers/fair-reactive-long.pdf)
 (Cave et al.) and Lively RaTT
